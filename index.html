@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Glitch-lite Editor</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div class="brand-text">
+            <span class="brand-title">Glitch-lite</span>
+            <span class="brand-subtitle">Local-first creative coding</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="newProjectBtn" class="btn">New Project</button>
+          <button id="importZipBtn" class="btn">Import ZIP</button>
+          <button id="exportZipBtn" class="btn">Export ZIP</button>
+          <button id="publishBtn" class="btn btn-primary">Publish</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="panel file-panel">
+          <div class="panel-header">
+            <span>Files</span>
+            <div class="panel-actions">
+              <button id="addFileBtn" class="icon-btn" title="Add file">+</button>
+              <button id="uploadFileBtn" class="icon-btn" title="Upload files">⬆</button>
+            </div>
+          </div>
+          <div id="fileTree" class="file-tree"></div>
+        </aside>
+
+        <section class="panel editor-panel">
+          <div class="panel-header">
+            <span id="currentFileLabel">Select a file</span>
+            <div class="panel-actions">
+              <span id="saveStatus" class="status">Idle</span>
+            </div>
+          </div>
+          <div class="editor-wrap">
+            <textarea id="editor" class="editor" spellcheck="false"></textarea>
+            <div id="binaryNotice" class="binary-notice hidden">
+              This file is binary. Preview it in the right panel or replace it.
+            </div>
+          </div>
+        </section>
+
+        <section class="panel preview-panel">
+          <div class="panel-header">
+            <span>Preview</span>
+            <div class="panel-actions">
+              <button id="refreshPreviewBtn" class="icon-btn" title="Refresh preview">⟳</button>
+            </div>
+          </div>
+          <div class="preview-wrap">
+            <iframe
+              id="previewFrame"
+              sandbox="allow-scripts allow-same-origin"
+              title="Project Preview"
+            ></iframe>
+          </div>
+          <div id="previewWarnings" class="warnings"></div>
+        </section>
+      </main>
+    </div>
+
+    <input id="zipInput" type="file" accept=".zip" class="hidden" />
+    <input id="fileInput" type="file" multiple class="hidden" />
+
+    <script src="assets/app.js"></script>
+  </body>
+</html>
