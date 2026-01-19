@@ -20,14 +20,48 @@
         <div class="brand">
           <div class="brand-mark"></div>
           <div class="brand-text">
-            <span class="brand-title">Glitch-lite</span>
-            <span class="brand-subtitle">Local-first creative coding</span>
+            <span class="brand-title">Glitchlet</span>
+            <span class="brand-subtitle">A Glitch-Like Tool for Creative Coding</span>
           </div>
         </div>
+        <div class="current-project">
+          <span class="current-project-label">Project</span>
+          <span id="currentProjectName" class="current-project-name">Untitled Project</span>
+        </div>
         <div class="actions">
-          <button id="newProjectBtn" class="btn">New Project</button>
-          <button id="importZipBtn" class="btn">Import ZIP</button>
-          <button id="exportZipBtn" class="btn">Export ZIP</button>
+          <button id="themeToggleBtn" class="btn" title="Switch theme mode">Theme: Auto</button>
+          <div class="project-manager">
+            <button id="projectManagerBtn" class="btn" title="Open project manager">Projects</button>
+            <div id="projectManagerPanel" class="manager-panel hidden" role="dialog" aria-label="Project manager">
+              <div class="manager-header">
+                <span>Project Manager</span>
+                <button id="closeProjectManagerBtn" class="icon-btn" title="Close">×</button>
+              </div>
+              <div class="manager-section">
+                <label class="manager-label" for="projectNameInput">Current project name</label>
+                <div class="manager-row">
+                  <input id="projectNameInput" class="manager-input" type="text" placeholder="Untitled Project" />
+                  <button id="renameProjectBtn" class="btn">Rename</button>
+                </div>
+                <div class="manager-row">
+                  <button id="saveProjectBtn" class="btn">Save</button>
+                  <button id="saveProjectAsBtn" class="btn">Save As...</button>
+                  <button id="newProjectBtn" class="btn">New Project</button>
+                </div>
+              </div>
+              <div class="manager-section">
+                <div class="manager-label">Projects</div>
+                <div id="projectList" class="project-list"></div>
+              </div>
+              <div class="manager-section">
+                <div class="manager-label">Import / Export</div>
+                <div class="manager-row">
+                  <button id="importZipBtn" class="btn">Import ZIP</button>
+                  <button id="exportZipBtn" class="btn">Export ZIP</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <button id="publishBtn" class="btn btn-primary">Publish</button>
         </div>
       </header>
@@ -51,9 +85,17 @@
 
         <section class="panel editor-panel">
           <div class="panel-header">
-            <span id="currentFileLabel">Select a file</span>
+            <div class="panel-title">
+              <span id="currentFileLabel">Select a file</span>
+              <span id="saveStatus" class="status"></span>
+            </div>
             <div class="panel-actions">
-              <span id="saveStatus" class="status">Idle</span>
+              <button id="undoBtn" class="mode-btn" title="Undo last change">Undo</button>
+              <button id="redoBtn" class="mode-btn" title="Redo last change">Redo</button>
+              <button id="prettifyBtn" class="mode-btn" title="Format current file">Prettify</button>
+              <button id="editorThemeToggleBtn" class="mode-btn" title="Toggle editor theme">
+                Editor: Dark
+              </button>
             </div>
           </div>
           <div class="editor-wrap">
@@ -93,6 +135,11 @@
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.js"></script>
+    <script src="https://unpkg.com/prettier@3.8.0/standalone.js"></script>
+    <script src="https://unpkg.com/prettier@3.8.0/plugins/babel.js"></script>
+    <script src="https://unpkg.com/prettier@3.8.0/plugins/estree.js"></script>
+    <script src="https://unpkg.com/prettier@3.8.0/plugins/html.js"></script>
+    <script src="https://unpkg.com/prettier@3.8.0/plugins/postcss.js"></script>
     <script src="assets/app.js"></script>
   </body>
 </html>

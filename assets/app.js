@@ -1,6 +1,11 @@
 const DB_NAME = "glitchlite-db";
 const STORE_NAME = "projects";
 const DEFAULT_PROJECT_ID = "default";
+const PUBLISH_ENDPOINT = "https://glitchlet.digitaldavidson.net/publish/publish.php";
+const THEME_STORAGE_KEY = "stitch:theme";
+const EDITOR_THEME_KEY = "stitch:editor-theme";
+const CURRENT_PROJECT_KEY = "stitch:current-project";
+const DEFAULT_PROJECT_NAME = "Untitled Project";
 const TEXT_EXTS = new Set([
   "html",
   "htm",
@@ -36,7 +41,10 @@ const MIME_BY_EXT = {
 
 const state = {
   projectId: DEFAULT_PROJECT_ID,
+  projectName: DEFAULT_PROJECT_NAME,
   files: new Map(),
+  editorDocs: new Map(),
+  binaryDoc: null,
   currentPath: null,
   previewUrls: [],
   saveTimer: null,
@@ -63,6 +71,20 @@ const elements = {
   importZipBtn: document.getElementById("importZipBtn"),
   exportZipBtn: document.getElementById("exportZipBtn"),
   publishBtn: document.getElementById("publishBtn"),
+  themeToggleBtn: document.getElementById("themeToggleBtn"),
+  editorThemeToggleBtn: document.getElementById("editorThemeToggleBtn"),
+  prettifyBtn: document.getElementById("prettifyBtn"),
+  undoBtn: document.getElementById("undoBtn"),
+  redoBtn: document.getElementById("redoBtn"),
+  currentProjectName: document.getElementById("currentProjectName"),
+  projectManagerBtn: document.getElementById("projectManagerBtn"),
+  projectManagerPanel: document.getElementById("projectManagerPanel"),
+  closeProjectManagerBtn: document.getElementById("closeProjectManagerBtn"),
+  projectNameInput: document.getElementById("projectNameInput"),
+  renameProjectBtn: document.getElementById("renameProjectBtn"),
+  saveProjectBtn: document.getElementById("saveProjectBtn"),
+  saveProjectAsBtn: document.getElementById("saveProjectAsBtn"),
+  projectList: document.getElementById("projectList"),
   addFileBtn: document.getElementById("addFileBtn"),
   uploadFileBtn: document.getElementById("uploadFileBtn"),
   refreshPreviewBtn: document.getElementById("refreshPreviewBtn"),
@@ -160,6 +182,22 @@ async function dbGet(key) {
   });
 }
 
+async function dbGetAll() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const keysRequest = store.getAllKeys();
+    const valuesRequest = store.getAll();
+    tx.oncomplete = () => {
+      const keys = keysRequest.result || [];
+      const values = valuesRequest.result || [];
+      resolve(keys.map((key, index) => ({ id: String(key), data: values[index] || null })));
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 async function dbSet(key, value) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -171,12 +209,41 @@ async function dbSet(key, value) {
   });
 }
 
+async function dbDelete(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.delete(key);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function getStoredProjectId() {
+  try {
+    return localStorage.getItem(CURRENT_PROJECT_KEY) || DEFAULT_PROJECT_ID;
+  } catch (error) {
+    console.warn("Unable to access localStorage", error);
+    return DEFAULT_PROJECT_ID;
+  }
+}
+
+function normalizeProjectName(name) {
+  const trimmed = String(name || "").trim();
+  return trimmed || DEFAULT_PROJECT_NAME;
+}
+
+function createProjectId() {
+  return `project-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
 function setStatus(text, hold = 1200) {
   elements.saveStatus.textContent = text;
   if (hold) {
     clearTimeout(state.statusTimer);
     state.statusTimer = setTimeout(() => {
-      elements.saveStatus.textContent = "Idle";
+      elements.saveStatus.textContent = "";
     }, hold);
   }
 }
@@ -205,12 +272,16 @@ function setEditorReadOnly(isReadOnly) {
 
 function setEditorMode(path) {
   if (!codeMirror) return;
-  const ext = extname(path);
-  let mode = "text/plain";
-  if (ext === "html" || ext === "htm") mode = "htmlmixed";
-  if (ext === "css") mode = "css";
-  if (ext === "js") mode = "javascript";
+  const mode = getEditorMode(path);
   codeMirror.setOption("mode", mode);
+}
+
+function getEditorMode(path) {
+  const ext = extname(path);
+  if (ext === "html" || ext === "htm") return "htmlmixed";
+  if (ext === "css") return "css";
+  if (ext === "js") return "javascript";
+  return "text/plain";
 }
 
 function getFile(path) {
@@ -223,6 +294,7 @@ function setFile(file) {
 
 function removeFile(path) {
   state.files.delete(path);
+  state.editorDocs.delete(path);
   if (state.currentPath === path) {
     state.currentPath = null;
     setEditorValue("");
@@ -270,14 +342,34 @@ function openFile(path) {
 
   if (file.kind === "binary") {
     elements.binaryNotice.classList.remove("hidden");
-    setEditorValue("");
     setEditorReadOnly(true);
-  } else {
-    elements.binaryNotice.classList.add("hidden");
-    setEditorReadOnly(false);
-    setEditorMode(path);
-    setEditorValue(file.data);
+    if (codeMirror) {
+      if (!state.binaryDoc) {
+        state.binaryDoc = new CodeMirror.Doc("", null);
+      }
+      codeMirror.swapDoc(state.binaryDoc);
+    } else {
+      setEditorValue("");
+    }
+    return;
   }
+
+  elements.binaryNotice.classList.add("hidden");
+  setEditorReadOnly(false);
+
+  if (codeMirror) {
+    let doc = state.editorDocs.get(path);
+    if (!doc) {
+      doc = new CodeMirror.Doc(file.data, getEditorMode(path));
+      state.editorDocs.set(path, doc);
+    }
+    codeMirror.swapDoc(doc);
+    setEditorMode(path);
+    return;
+  }
+
+  setEditorMode(path);
+  setEditorValue(file.data);
 }
 
 function updateCurrentFile(value) {
@@ -287,6 +379,53 @@ function updateCurrentFile(value) {
   if (!file || file.kind === "binary") return;
   file.data = value;
   setFile(file);
+}
+
+async function prettifyCurrentFile() {
+  const path = state.currentPath;
+  if (!path) {
+    alert("Pick a file to format.");
+    return;
+  }
+  const file = getFile(path);
+  if (!file || file.kind === "binary") {
+    alert("This file type cannot be prettified.");
+    return;
+  }
+  if (!window.prettier || !window.prettierPlugins) {
+    alert("Prettier is still loading. Try again in a moment.");
+    return;
+  }
+  const ext = extname(path);
+  let parser = null;
+  if (ext === "js") parser = "babel";
+  if (ext === "css") parser = "css";
+  if (ext === "html" || ext === "htm") parser = "html";
+  if (!parser) {
+    alert("Prettify supports HTML, CSS, and JavaScript files.");
+    return;
+  }
+  try {
+    const formatted = await window.prettier.format(file.data, {
+      parser,
+      plugins: window.prettierPlugins,
+      tabWidth: 2,
+      printWidth: 80,
+      semi: true,
+      singleQuote: false,
+      trailingComma: "es5",
+    });
+    if (typeof formatted !== "string") {
+      throw new Error("Prettier returned non-string output.");
+    }
+    setEditorValue(formatted);
+    updateCurrentFile(formatted);
+    queueSave();
+    queuePreview();
+  } catch (error) {
+    console.error(error);
+    alert("Prettify failed. Check the console for details.");
+  }
 }
 
 function serializeProject() {
@@ -303,11 +442,18 @@ function serializeProject() {
     }
     return payload;
   });
-  return { updatedAt: Date.now(), files };
+  return {
+    id: state.projectId,
+    name: state.projectName,
+    updatedAt: Date.now(),
+    files,
+  };
 }
 
 function loadProject(project) {
   state.files = new Map();
+  state.editorDocs = new Map();
+  state.projectName = normalizeProjectName(project?.name);
   for (const file of project.files) {
     let data = file.data;
     if (file.kind === "binary") {
@@ -322,6 +468,7 @@ function queueSave() {
   setStatus("Saving...", 0);
   state.saveTimer = setTimeout(async () => {
     try {
+      localStorage.setItem(CURRENT_PROJECT_KEY, state.projectId);
       await dbSet(state.projectId, serializeProject());
       setStatus("Saved");
     } catch (error) {
@@ -475,6 +622,7 @@ function openFirstFile() {
 }
 
 async function loadInitialProject() {
+  state.projectId = getStoredProjectId();
   const stored = await dbGet(state.projectId);
   if (stored && stored.files?.length) {
     loadProject(stored);
@@ -487,6 +635,7 @@ async function loadInitialProject() {
   renderFileTree();
   openFirstFile();
   renderPreview();
+  renderProjectManager();
 }
 
 function addFile(path, data = "", kind = null) {
@@ -560,18 +709,22 @@ async function importZip(file) {
   }
 }
 
+async function buildZipBlob() {
+  const JSZip = await ensureJSZip();
+  const zip = new JSZip();
+  for (const file of state.files.values()) {
+    if (file.kind === "binary") {
+      zip.file(file.path, file.data);
+    } else {
+      zip.file(file.path, file.data);
+    }
+  }
+  return zip.generateAsync({ type: "blob" });
+}
+
 async function exportZip() {
   try {
-    const JSZip = await ensureJSZip();
-    const zip = new JSZip();
-    for (const file of state.files.values()) {
-      if (file.kind === "binary") {
-        zip.file(file.path, file.data);
-      } else {
-        zip.file(file.path, file.data);
-      }
-    }
-    const blob = await zip.generateAsync({ type: "blob" });
+    const blob = await buildZipBlob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -586,15 +739,115 @@ async function exportZip() {
   }
 }
 
-function resetProject() {
+async function publishProject() {
+  try {
+    setStatus("Publishing...", 0);
+    const blob = await buildZipBlob();
+    const form = new FormData();
+    form.append("zip", blob, `project-${Date.now()}.zip`);
+    form.append("name", state.projectName);
+    const response = await fetch(PUBLISH_ENDPOINT, {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Publish failed (${response.status})`);
+    }
+    const data = await response.json();
+    if (data?.url) {
+      setStatus("Published");
+      alert(`Published! View it at:\n${data.url}`);
+    } else {
+      setStatus("Published");
+      alert("Published! Check the projects directory for your site.");
+    }
+  } catch (error) {
+    console.error(error);
+    setStatus("Publish failed", 2000);
+    alert("Publish failed. Check the console for details.");
+  }
+}
+
+async function resetProject() {
   if (!confirm("Start a new project? This will clear the current workspace.")) return;
+  const name = prompt("Name your project:", DEFAULT_PROJECT_NAME);
+  state.projectId = createProjectId();
+  state.projectName = normalizeProjectName(name);
+  localStorage.setItem(CURRENT_PROJECT_KEY, state.projectId);
   state.files = new Map();
+  state.editorDocs = new Map();
   const defaults = createDefaultFiles();
   defaults.forEach((file) => setFile({ ...file }));
   renderFileTree();
   openFirstFile();
-  queueSave();
+  await dbSet(state.projectId, serializeProject());
+  renderProjectManager();
   queuePreview();
+}
+
+function isDarkTheme(theme) {
+  if (theme && theme !== "auto") return theme === "dark";
+  return window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function updateThemeToggleLabel(theme) {
+  if (!elements.themeToggleBtn) return;
+  const mode = theme || "auto";
+  const order = ["auto", "light", "dark"];
+  const nextMode = order[(order.indexOf(mode) + 1) % order.length];
+  const label = `Theme: ${mode[0].toUpperCase()}${mode.slice(1)}`;
+  elements.themeToggleBtn.textContent = label;
+  elements.themeToggleBtn.title = `Switch to ${nextMode} mode`;
+}
+
+function applyTheme(theme) {
+  if (theme === "dark" || theme === "light") {
+    document.documentElement.setAttribute("data-theme", theme);
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  updateThemeToggleLabel(theme);
+}
+
+function toggleTheme() {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY) || "auto";
+  const order = ["auto", "light", "dark"];
+  const next = order[(order.indexOf(stored) + 1) % order.length];
+  localStorage.setItem(THEME_STORAGE_KEY, next);
+  applyTheme(next);
+}
+
+function resolveEditorTheme(theme) {
+  if (theme === "dark" || theme === "light") return theme;
+  return isDarkTheme(null) ? "dark" : "light";
+}
+
+function updateEditorThemeToggleLabel(theme) {
+  if (!elements.editorThemeToggleBtn) return;
+  const resolved = resolveEditorTheme(theme);
+  const next = resolved === "dark" ? "light" : "dark";
+  const label = `Editor: ${resolved === "dark" ? "Dark" : "Light"}`;
+  elements.editorThemeToggleBtn.textContent = label;
+  elements.editorThemeToggleBtn.title = `Switch editor to ${next} mode`;
+}
+
+function applyEditorTheme(theme) {
+  const resolved = resolveEditorTheme(theme);
+  document.documentElement.setAttribute("data-editor-theme", resolved);
+  if (codeMirror) {
+    codeMirror.setOption("theme", resolved === "dark" ? "material-darker" : "default");
+  }
+  updateEditorThemeToggleLabel(theme);
+}
+
+function toggleEditorTheme() {
+  const stored = localStorage.getItem(EDITOR_THEME_KEY);
+  const current = resolveEditorTheme(stored);
+  const next = current === "dark" ? "light" : "dark";
+  localStorage.setItem(EDITOR_THEME_KEY, next);
+  applyEditorTheme(next);
 }
 
 function setupEvents() {
@@ -616,8 +869,38 @@ function setupEvents() {
   elements.newProjectBtn.addEventListener("click", resetProject);
   elements.importZipBtn.addEventListener("click", () => elements.zipInput.click());
   elements.exportZipBtn.addEventListener("click", exportZip);
-  elements.publishBtn.addEventListener("click", () => {
-    alert("Publishing is wired up later to the PHP endpoint.");
+  elements.publishBtn.addEventListener("click", publishProject);
+  elements.themeToggleBtn.addEventListener("click", toggleTheme);
+  elements.editorThemeToggleBtn.addEventListener("click", toggleEditorTheme);
+  elements.prettifyBtn.addEventListener("click", prettifyCurrentFile);
+  elements.undoBtn.addEventListener("click", () => {
+    if (codeMirror) {
+      codeMirror.undo();
+      codeMirror.focus();
+      return;
+    }
+    elements.editor.focus();
+    document.execCommand("undo");
+  });
+  elements.redoBtn.addEventListener("click", () => {
+    if (codeMirror) {
+      codeMirror.redo();
+      codeMirror.focus();
+      return;
+    }
+    elements.editor.focus();
+    document.execCommand("redo");
+  });
+  elements.projectManagerBtn.addEventListener("click", () => toggleProjectManager());
+  elements.closeProjectManagerBtn.addEventListener("click", () => toggleProjectManager(false));
+  elements.renameProjectBtn.addEventListener("click", renameProject);
+  elements.saveProjectBtn.addEventListener("click", saveCurrentProject);
+  elements.saveProjectAsBtn.addEventListener("click", saveProjectAs);
+  elements.projectNameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      renameProject();
+    }
   });
   elements.addFileBtn.addEventListener("click", () => {
     const path = prompt("New file path (e.g. assets/main.css):");
@@ -627,7 +910,7 @@ function setupEvents() {
   elements.refreshPreviewBtn.addEventListener("click", renderPreview);
   elements.toggleFilePanelBtn.addEventListener("click", () => setFilePanelCollapsed(true));
   elements.expandFilePanelBtn.addEventListener("click", () => setFilePanelCollapsed(false));
-  elements.splitter.addEventListener("mousedown", startResize);
+  elements.splitter.addEventListener("pointerdown", startResize);
 
   elements.zipInput.addEventListener("change", (event) => {
     const [file] = event.target.files || [];
@@ -639,6 +922,13 @@ function setupEvents() {
     const files = Array.from(event.target.files || []);
     if (files.length) handleFileUpload(files);
     event.target.value = "";
+  });
+
+  document.addEventListener("click", (event) => {
+    if (elements.projectManagerPanel.classList.contains("hidden")) return;
+    const isInside = elements.projectManagerPanel.contains(event.target) ||
+      elements.projectManagerBtn.contains(event.target);
+    if (!isInside) toggleProjectManager(false);
   });
 }
 
@@ -655,40 +945,215 @@ function applyStoredLayout() {
   setFilePanelCollapsed(collapsed);
   const storedWidth = Number(localStorage.getItem("stitch:editor-width"));
   if (storedWidth) {
-    elements.editorPanel.style.flexBasis = `${storedWidth}px`;
+    elements.editorPanel.style.flex = `0 0 ${storedWidth}px`;
   }
 }
 
+function applyStoredTheme() {
+  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+  applyTheme(storedTheme);
+  if (window.matchMedia) {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => {
+      if (!localStorage.getItem(THEME_STORAGE_KEY) || localStorage.getItem(THEME_STORAGE_KEY) === "auto") {
+        updateThemeToggleLabel("auto");
+        if (!localStorage.getItem(EDITOR_THEME_KEY)) {
+          applyEditorTheme(null);
+        }
+      }
+    };
+    media.addEventListener("change", handler);
+  }
+}
+
+function updateProjectManagerFields() {
+  if (!elements.projectNameInput) return;
+  elements.projectNameInput.value = state.projectName;
+  if (elements.currentProjectName) {
+    elements.currentProjectName.textContent = state.projectName;
+  }
+}
+
+async function renderProjectManager() {
+  updateProjectManagerFields();
+  if (!elements.projectList) return;
+  const projects = await dbGetAll();
+  const sorted = projects
+    .filter((item) => item.data && item.data.files?.length)
+    .sort((a, b) => (b.data.updatedAt || 0) - (a.data.updatedAt || 0));
+
+  elements.projectList.innerHTML = "";
+  if (!sorted.length) {
+    const empty = document.createElement("div");
+    empty.className = "project-item";
+    empty.textContent = "No saved projects yet.";
+    elements.projectList.appendChild(empty);
+    return;
+  }
+
+  for (const project of sorted) {
+    const item = document.createElement("div");
+    item.className = "project-item";
+    if (project.id === state.projectId) item.classList.add("active");
+
+    const meta = document.createElement("div");
+    meta.className = "project-meta";
+
+    const name = document.createElement("div");
+    name.className = "project-name";
+    name.textContent = normalizeProjectName(project.data?.name);
+
+    const updated = document.createElement("div");
+    updated.className = "project-updated";
+    const timestamp = project.data?.updatedAt ? new Date(project.data.updatedAt) : null;
+    updated.textContent = timestamp ? `Updated ${timestamp.toLocaleString()}` : "Saved";
+
+    meta.append(name, updated);
+
+    const actions = document.createElement("div");
+    actions.className = "project-actions";
+
+    const openBtn = document.createElement("button");
+    openBtn.className = "project-action";
+    openBtn.textContent = project.id === state.projectId ? "Current" : "Open";
+    openBtn.disabled = project.id === state.projectId;
+    openBtn.addEventListener("click", () => loadProjectById(project.id));
+
+    const renameBtn = document.createElement("button");
+    renameBtn.className = "project-action";
+    renameBtn.textContent = "Rename";
+    renameBtn.addEventListener("click", () => renameProjectById(project.id));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "project-action danger";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.disabled = project.id === state.projectId;
+    deleteBtn.addEventListener("click", () => deleteProjectById(project.id));
+
+    actions.append(openBtn, renameBtn, deleteBtn);
+    item.append(meta, actions);
+    elements.projectList.appendChild(item);
+  }
+}
+
+function toggleProjectManager(force) {
+  const isOpen = !elements.projectManagerPanel.classList.contains("hidden");
+  const nextOpen = typeof force === "boolean" ? force : !isOpen;
+  elements.projectManagerPanel.classList.toggle("hidden", !nextOpen);
+  if (nextOpen) {
+    renderProjectManager();
+  }
+}
+
+async function loadProjectById(projectId) {
+  const project = await dbGet(projectId);
+  if (!project || !project.files?.length) return;
+  state.projectId = projectId;
+  state.projectName = normalizeProjectName(project.name);
+  localStorage.setItem(CURRENT_PROJECT_KEY, state.projectId);
+  loadProject(project);
+  renderFileTree();
+  openFirstFile();
+  renderPreview();
+  renderProjectManager();
+}
+
+async function renameProjectById(projectId) {
+  const project = await dbGet(projectId);
+  if (!project) return;
+  const currentName = normalizeProjectName(project.name);
+  const name = prompt("Rename project:", currentName);
+  if (!name) return;
+  const updatedProject = { ...project, name: normalizeProjectName(name), updatedAt: Date.now() };
+  await dbSet(projectId, updatedProject);
+  if (projectId === state.projectId) {
+    state.projectName = updatedProject.name;
+  }
+  renderProjectManager();
+}
+
+async function deleteProjectById(projectId) {
+  if (!confirm("Delete this project? This cannot be undone.")) return;
+  await dbDelete(projectId);
+  renderProjectManager();
+}
+
+async function saveCurrentProject() {
+  try {
+    localStorage.setItem(CURRENT_PROJECT_KEY, state.projectId);
+    await dbSet(state.projectId, serializeProject());
+    setStatus("Saved");
+    renderProjectManager();
+  } catch (error) {
+    console.error(error);
+    setStatus("Save failed", 2000);
+  }
+}
+
+async function saveProjectAs() {
+  const name = prompt("Save project as:", state.projectName);
+  if (!name) return;
+  state.projectId = createProjectId();
+  state.projectName = normalizeProjectName(name);
+  localStorage.setItem(CURRENT_PROJECT_KEY, state.projectId);
+  await dbSet(state.projectId, serializeProject());
+  renderProjectManager();
+  setStatus("Saved");
+}
+
+async function renameProject() {
+  const name = normalizeProjectName(elements.projectNameInput.value);
+  state.projectName = name;
+  await dbSet(state.projectId, serializeProject());
+  renderProjectManager();
+  setStatus("Renamed");
+}
+
 function startResize(event) {
-  if (event.button !== 0) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
   event.preventDefault();
   state.isResizing = true;
   document.body.classList.add("resizing");
   const startX = event.clientX;
   const startWidth = elements.editorPanel.getBoundingClientRect().width;
-  const fileWidth = elements.filePanel.getBoundingClientRect().width;
+  const splitterWidth = elements.splitter.getBoundingClientRect().width;
+  elements.previewFrame.style.pointerEvents = "none";
+  elements.splitter.setPointerCapture(event.pointerId);
 
   const onMove = (moveEvent) => {
     if (!state.isResizing) return;
     const delta = moveEvent.clientX - startX;
     const workspaceWidth = elements.workspace.getBoundingClientRect().width;
-    const minWidth = 280;
-    const maxWidth = workspaceWidth - fileWidth - 320;
-    const nextWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + delta));
-    elements.editorPanel.style.flexBasis = `${nextWidth}px`;
+    const fileWidth = elements.workspace.classList.contains("file-collapsed")
+      ? 0
+      : elements.filePanel.getBoundingClientRect().width;
+    const availableWidth = workspaceWidth - fileWidth - splitterWidth;
+    const minEditor = 240;
+    const minPreview = 220;
+    const maxEditor = Math.max(minEditor, availableWidth - minPreview);
+    const nextWidth = Math.max(minEditor, Math.min(maxEditor, startWidth + delta));
+    const previewWidth = Math.max(minPreview, availableWidth - nextWidth);
+    elements.editorPanel.style.flex = `0 0 ${nextWidth}px`;
+    elements.previewPanel.style.flex = `1 1 ${previewWidth}px`;
   };
 
-  const onUp = () => {
+  const stopResize = () => {
+    if (!state.isResizing) return;
     state.isResizing = false;
     document.body.classList.remove("resizing");
+    elements.previewFrame.style.pointerEvents = "";
     const finalWidth = elements.editorPanel.getBoundingClientRect().width;
     localStorage.setItem("stitch:editor-width", Math.round(finalWidth).toString());
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
+    elements.splitter.removeEventListener("pointermove", onMove);
+    elements.splitter.removeEventListener("pointerup", stopResize);
+    elements.splitter.removeEventListener("pointercancel", stopResize);
+    elements.splitter.removeEventListener("lostpointercapture", stopResize);
   };
 
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
+  elements.splitter.addEventListener("pointermove", onMove);
+  elements.splitter.addEventListener("pointerup", stopResize);
+  elements.splitter.addEventListener("pointercancel", stopResize);
+  elements.splitter.addEventListener("lostpointercapture", stopResize);
 }
 
 function initCodeMirror() {
@@ -703,6 +1168,8 @@ function initCodeMirror() {
 }
 
 initCodeMirror();
+applyStoredTheme();
+applyEditorTheme(localStorage.getItem(EDITOR_THEME_KEY));
 applyStoredLayout();
 setupEvents();
 loadInitialProject();
