@@ -240,7 +240,8 @@ function writeIndex(string $jsonPath, string $htmlPath, array $projects): void {
 }
 
 function buildIndexHtml(array $projects): string {
-  $cards = "";
+    $cards = "";
+    $adminButton = "<a class=\"admin-btn\" href=\"" . PROJECT_URL_BASE . "admin.php\">Admin</a>";
   foreach ($projects as $project) {
     if (!empty($project["archived"])) {
       continue;
@@ -254,13 +255,13 @@ function buildIndexHtml(array $projects): string {
             ? date("M j, Y", (int) $project["publishedAt"])
             : "";
         $meta = trim(($author ? "By " . $author : "") . ($timestamp ? " · " . $timestamp : ""), " ·");
-        $cards .= "<article class=\"card\">"
-            . "<h2><a href=\"{$url}\">{$name}</a></h2>"
-            . "<div class=\"meta\">{$meta}</div>"
-            . ($description ? "<p>{$description}</p>" : "")
-            . "<div class=\"slug\">{$slug}</div>"
-            . "</article>";
-    }
+    $cards .= "<article class=\"card\">"
+      . "<h2><a href=\"{$url}\">{$name}</a></h2>"
+      . "<div class=\"meta\">{$meta}</div>"
+      . ($description ? "<p>{$description}</p>" : "")
+      . "<div class=\"slug\">{$slug}</div>"
+      . "</article>";
+  }
     if ($cards === "") {
         $cards = "<p class=\"empty\">No projects published yet.</p>";
     }
@@ -271,7 +272,9 @@ function buildIndexHtml(array $projects): string {
         . "<style>"
         . "body{margin:0;font-family:Arial,sans-serif;background:#f6f6fb;color:#1b1736;}"
         . ".wrap{max-width:960px;margin:0 auto;padding:32px 20px;}"
-        . "h1{margin:0 0 20px;font-size:28px;}"
+        . "h1{margin:0 0 20px;font-size:28px;display:flex;align-items:center;gap:12px;}"
+        . ".admin-btn{font-size:12px;text-decoration:none;color:#fff;background:#3b2d72;"
+        . "padding:6px 10px;border-radius:999px;}"
         . ".grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}"
         . ".card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 12px 24px rgba(0,0,0,0.08);}"
         . ".card h2{margin:0 0 6px;font-size:18px;}"
@@ -280,9 +283,9 @@ function buildIndexHtml(array $projects): string {
         . ".slug{font-size:11px;color:#8b87a7;}"
         . ".empty{color:#5b5875;}"
         . "</style></head><body><div class=\"wrap\">"
-        . "<h1>Published Projects</h1>"
-        . "<div class=\"grid\">{$cards}</div>"
-        . "</div></body></html>";
+      . "<h1>Published Projects {$adminButton}</h1>"
+      . "<div class=\"grid\">{$cards}</div>"
+      . "</div></body></html>";
 }
 
 function createZipFromDir(string $source, string $zipPath, array $skipFiles): void {
@@ -323,15 +326,18 @@ function generateSlug(array $adjectives, array $nouns, string $projectsRoot): st
 }
 
 function injectRemixFab(string $projectDir): void {
-    $snippet = "\n<!-- remix-fab -->\n"
-        . "<a href=\"" . REMIX_ZIP_NAME . "\" class=\"remix-fab\" data-remix-fab download>Remix</a>\n"
-        . "<style>\n"
-        . ".remix-fab{position:fixed;right:20px;bottom:20px;z-index:9999;"
-        . "padding:12px 16px;border-radius:999px;background:#ff5cad;color:#fff;"
-        . "font:600 14px/1.1 Arial,sans-serif;text-decoration:none;"
-        . "box-shadow:0 10px 24px rgba(255,92,173,0.35);}\n"
-        . ".remix-fab:hover{transform:translateY(-2px);}\n"
-        . "</style>\n";
+  $snippet = "\n<!-- remix-fab -->\n"
+      . "<a href=\"admin.php\" class=\"admin-fab\" data-admin-fab>Admin</a>\n"
+      . "<a href=\"" . REMIX_ZIP_NAME . "\" class=\"remix-fab\" data-remix-fab download>Remix</a>\n"
+      . "<style>\n"
+      . ".remix-fab,.admin-fab{position:fixed;right:20px;z-index:9999;"
+      . "padding:12px 16px;border-radius:999px;color:#fff;"
+      . "font:600 14px/1.1 Arial,sans-serif;text-decoration:none;"
+      . "box-shadow:0 10px 24px rgba(255,92,173,0.35);}\n"
+      . ".admin-fab{bottom:70px;background:#3b2d72;box-shadow:0 10px 24px rgba(59,45,114,0.35);}\n"
+      . ".remix-fab{bottom:20px;background:#ff5cad;}\n"
+      . ".admin-fab:hover,.remix-fab:hover{transform:translateY(-2px);}\n"
+      . "</style>\n";
     $items = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($projectDir, FilesystemIterator::SKIP_DOTS)
     );

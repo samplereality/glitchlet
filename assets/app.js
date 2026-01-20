@@ -78,6 +78,9 @@ const elements = {
   themeToggleBtn: document.getElementById("themeToggleBtn"),
   editorThemeToggleBtn: document.getElementById("editorThemeToggleBtn"),
   wrapToggleBtn: document.getElementById("wrapToggleBtn"),
+  searchBtn: document.getElementById("searchBtn"),
+  foldAllBtn: document.getElementById("foldAllBtn"),
+  unfoldAllBtn: document.getElementById("unfoldAllBtn"),
   prettifyBtn: document.getElementById("prettifyBtn"),
   undoBtn: document.getElementById("undoBtn"),
   redoBtn: document.getElementById("redoBtn"),
@@ -1245,6 +1248,27 @@ function setupEvents() {
   elements.themeToggleBtn.addEventListener("click", toggleTheme);
   elements.editorThemeToggleBtn.addEventListener("click", toggleEditorTheme);
   elements.wrapToggleBtn.addEventListener("click", toggleLineWrap);
+  elements.searchBtn.addEventListener("click", async () => {
+    if (!codeMirror) {
+      await showAlert("Search is only available in the code editor.", "Search");
+      return;
+    }
+    codeMirror.execCommand("find");
+  });
+  elements.foldAllBtn.addEventListener("click", async () => {
+    if (!codeMirror) {
+      await showAlert("Folding is only available in the code editor.", "Fold");
+      return;
+    }
+    codeMirror.execCommand("foldAll");
+  });
+  elements.unfoldAllBtn.addEventListener("click", async () => {
+    if (!codeMirror) {
+      await showAlert("Folding is only available in the code editor.", "Unfold");
+      return;
+    }
+    codeMirror.execCommand("unfoldAll");
+  });
   elements.prettifyBtn.addEventListener("click", prettifyCurrentFile);
   elements.projectMetaBtn.addEventListener("click", openProjectMetaModal);
   elements.closeProjectMetaBtn.addEventListener("click", saveProjectMeta);
@@ -1458,6 +1482,13 @@ function setFilePanelCollapsed(collapsed) {
   const icon = collapsed ? "chevrons-right" : "chevrons-left";
   elements.toggleFilePanelBtn.innerHTML = `<i data-lucide="${icon}"></i>`;
   refreshIcons();
+  if (collapsed) {
+    elements.expandFilePanelBtn.classList.add("pulse");
+    clearTimeout(state.statusTimer);
+    state.statusTimer = setTimeout(() => {
+      elements.expandFilePanelBtn.classList.remove("pulse");
+    }, 3200);
+  }
   localStorage.setItem("stitch:file-panel-collapsed", collapsed ? "1" : "0");
 }
 
@@ -1787,6 +1818,11 @@ function initCodeMirror() {
   codeMirror = window.CodeMirror.fromTextArea(elements.editor, {
     lineNumbers: true,
     lineWrapping: lineWrappingEnabled,
+    matchBrackets: true,
+    autoCloseBrackets: true,
+    autoCloseTags: true,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
     theme: "material-darker",
     mode: "htmlmixed",
   });
