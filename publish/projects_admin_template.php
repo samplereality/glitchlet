@@ -75,7 +75,7 @@ function buildIndexHtml(array $projects): string {
     $cards = "";
     $adminButton = "<a class=\"admin-btn\" href=\"/projects/admin.php\">Admin</a>"
         . "<a class=\"admin-btn outline\" href=\"/projects/index.html\">Projects</a>"
-        . "<a class=\"admin-btn outline\" href=\"https://glitchlet.digitaldavidson.net/\">App</a>";
+        . "<a class=\"admin-btn outline\" href=\"https://glitchlet.digitaldavidson.net/\">Glitchlet</a>";
     foreach ($projects as $project) {
         if (!empty($project["archived"])) {
             continue;
@@ -108,7 +108,9 @@ function buildIndexHtml(array $projects): string {
         . ".wrap{max-width:960px;margin:0 auto;padding:32px 20px;}"
         . "h1{margin:0 0 20px;font-size:28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}"
         . ".admin-btn{font-size:12px;text-decoration:none;color:#fff;background:#3b2d72;"
-        . "padding:6px 10px;border-radius:999px;}"
+        . "padding:6px 10px;border-radius:999px;transition:transform 0.2s ease,box-shadow 0.2s ease;}"
+        . ".admin-btn.outline{background:#fff;color:#3b2d72;border:1px solid #3b2d72;}"
+        . ".admin-btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(31,29,26,0.12);}"
         . ".admin-btn.outline{background:#fff;color:#3b2d72;border:1px solid #3b2d72;}"
         . ".grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}"
         . ".card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 12px 24px rgba(0,0,0,0.08);}"
@@ -233,6 +235,8 @@ $resetInfo = $_SESSION["reset_password"] ?? null;
 if ($resetInfo) {
     unset($_SESSION["reset_password"]);
 }
+$adminButton = "<a class=\"admin-btn\" href=\"/projects/index.html\">Projects</a>"
+    . "<a class=\"admin-btn outline\" href=\"https://glitchlet.digitaldavidson.net/\">Glitchlet</a>";
 $rows = "";
 foreach ($projects as $project) {
     $slug = htmlspecialchars($project["slug"] ?? "", ENT_QUOTES);
@@ -277,7 +281,9 @@ echo "<!doctype html><html><head><meta charset=\"utf-8\" />"
     . ".wrap{max-width:960px;margin:0 auto;padding:32px 20px;}"
     . "h1{margin:0 0 20px;font-size:28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}"
     . ".admin-btn{font-size:12px;text-decoration:none;color:#fff;background:#3b2d72;"
-    . "padding:6px 10px;border-radius:999px;}"
+    . "padding:6px 10px;border-radius:999px;transition:transform 0.2s ease,box-shadow 0.2s ease;}"
+    . ".admin-btn.outline{background:#fff;color:#3b2d72;border:1px solid #3b2d72;}"
+    . ".admin-btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(31,29,26,0.12);}"
     . ".admin-btn.outline{background:#fff;color:#3b2d72;border:1px solid #3b2d72;}"
     . ".row{display:grid;grid-template-columns:1fr auto auto;gap:16px;align-items:center;"
     . "background:#fff;padding:14px;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,0.08);"

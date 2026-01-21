@@ -122,8 +122,18 @@ body {
   padding: 10px 16px;
   border-radius: 999px;
   font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+a.btn {
+  font-weight: 600;
 }
 
 .btn:hover {
@@ -485,6 +495,10 @@ body {
 
 .file-folder {
   background: rgba(75, 28, 255, 0.06);
+}
+
+.file-folder .file-item-actions {
+  margin-left: auto;
 }
 
 .file-item.drag-over {

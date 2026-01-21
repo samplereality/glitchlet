@@ -213,6 +213,9 @@ $name = htmlspecialchars($current["name"] ?? "Untitled Project", ENT_QUOTES);
 $description = htmlspecialchars($current["description"] ?? "", ENT_QUOTES);
 $author = htmlspecialchars($current["author"] ?? "", ENT_QUOTES);
 $csrf = htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES);
+$projectUrl = htmlspecialchars(($current["url"] ?? ""), ENT_QUOTES);
+$projectsUrl = "/projects/index.html";
+$appUrl = "https://glitchlet.digitaldavidson.net/";
 
 echo "<!doctype html><html><head><meta charset=\"utf-8\" />"
     . "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />"
@@ -226,9 +229,19 @@ echo "<!doctype html><html><head><meta charset=\"utf-8\" />"
     . "button{padding:10px 18px;border-radius:999px;border:none;font-weight:600;}"
     . ".primary{background:#4b1cff;color:#fff;}"
     . ".danger{background:#ffe9e6;color:#a01912;}"
+    . ".nav{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;}"
+    . ".nav a{font-size:12px;text-decoration:none;color:#fff;background:#3b2d72;"
+    . "padding:6px 10px;border-radius:999px;transition:transform 0.2s ease,box-shadow 0.2s ease;}"
+    . ".nav a.outline{background:#fff;color:#3b2d72;border:1px solid #3b2d72;}"
+    . ".nav a:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(31,29,26,0.12);}"
     . ".row{display:grid;gap:12px;margin-top:16px;}"
     . ".actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}"
     . "</style></head><body><div class=\"card\">"
+    . "<div class=\"nav\">"
+    . ($projectUrl ? "<a href=\"{$projectUrl}\" target=\"_blank\" rel=\"noopener\">This Project</a>" : "")
+    . "<a class=\"outline\" href=\"{$projectsUrl}\">All Published Projects</a>"
+    . "<a class=\"outline\" href=\"{$appUrl}\">Glitchlet</a>"
+    . "</div>"
     . "<h1>Project Admin</h1>"
     . "<form method=\"post\" class=\"row\">"
     . "<input type=\"hidden\" name=\"csrf_token\" value=\"{$csrf}\" />"
