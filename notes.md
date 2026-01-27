@@ -51,6 +51,7 @@
 - Copy `publish/config.php.template` to `publish/config.php` and configure MySQL credentials or environment variables.
 - Run `publish/schema.sql` to create tables.
 - Use `publish/bootstrap.php` (with `GLITCHLET_BOOTSTRAP_TOKEN`) to create the first manager.
+- Optional: use `/install.php` to write config, create `/projects`, run schema, and create manager (writes `install.lock`).
 
 ## Notable paths and constants
 - `assets/app.js`

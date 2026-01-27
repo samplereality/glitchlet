@@ -15,6 +15,14 @@ Glitchlet is a lightweight, browser-based creative-coding environment (HTML/CSS/
 
 Frontend editor scaffold is in place. Server-side publishing (through a PHP-endpoint) also works.
 
+## Install via browser (recommended)
+
+1) Upload the project files to your document root.
+2) Visit `/install.php` in the browser.
+3) Enter DB + SMTP details and create the manager account.
+4) The installer writes `publish/config.php`, creates `/projects`, and runs `publish/schema.sql`.
+5) The installer writes `install.lock`. Delete `install.php` or keep it locked.
+
 ## Getting started (shared hosting)
 
 These instructions assume a typical shared host (e.g., Reclaim Hosting) with PHP enabled.
@@ -23,9 +31,9 @@ These instructions assume a typical shared host (e.g., Reclaim Hosting) with PHP
 2) Upload the project files into the subdomain document root (e.g., `~/glitchlet.yoursite.net/`).
 3) Create a `/projects` directory inside that document root.
 4) Configure a MySQL database and run `publish/schema.sql` (includes users/projects/password resets).
-5) Copy `publish/config.php.template` to `publish/config.php` and set DB credentials + app URLs (or use env vars).
+5) Copy `publish/config.php.template` to `publish/config.php` and set DB credentials + app URLs (or use env vars), or use `/install.php`.
 6) (Optional) Configure SMTP for Gmail with app password (see config values).
-7) Set `GLITCHLET_BOOTSTRAP_TOKEN` and create the first manager via `/publish/bootstrap.php?token=...`.
+7) Set `GLITCHLET_BOOTSTRAP_TOKEN` and create the first manager via `/publish/bootstrap.php?token=...` (or use `/install.php`).
 8) Confirm PHP is enabled for the `/publish` folder (a simple `test.php` should run).
 9) Open the app at your subdomain, sign in, and publish a test project.
 
@@ -33,7 +41,7 @@ These instructions assume a typical shared host (e.g., Reclaim Hosting) with PHP
 
 1) Set `GLITCHLET_BOOTSTRAP_TOKEN` in `publish/config.php`.
 2) Configure SMTP in `publish/config.php` (`SMTP_ENABLED`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`).
-3) Visit `/publish/bootstrap.php?token=...` and create the manager account.
+3) Visit `/publish/bootstrap.php?token=...` and create the manager account (or use `/install.php`).
 4) Open `/publish/manager.php`, create editor accounts, and verify the email links.
 
 ## Local development (optional)
@@ -55,6 +63,7 @@ Then visit `http://localhost:8000`.
 - If using email setup links, configure `GLITCHLET_SMTP_*` values in `publish/config.php`.
 - Create the manager account via `/publish/bootstrap.php?token=...`.
 - Ensure PHP is enabled for the `/publish` folder.
+- Optionally use `/install.php` to automate these steps.
 
 ## Project structure
 
