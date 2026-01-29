@@ -267,6 +267,27 @@ function writeProjectsAdminDashboard(string $projectsRoot, string $templatePath)
     file_put_contents($projectsRoot . "/" . PROJECTS_ADMIN_PHP, $template);
 }
 
+function uploadErrorMessage(int $code): string {
+    switch ($code) {
+        case UPLOAD_ERR_INI_SIZE:
+            return "Upload exceeded server limit (upload_max_filesize).";
+        case UPLOAD_ERR_FORM_SIZE:
+            return "Upload exceeded form limit.";
+        case UPLOAD_ERR_PARTIAL:
+            return "Upload incomplete.";
+        case UPLOAD_ERR_NO_FILE:
+            return "No file uploaded.";
+        case UPLOAD_ERR_NO_TMP_DIR:
+            return "Missing temporary folder on server.";
+        case UPLOAD_ERR_CANT_WRITE:
+            return "Failed to write upload to disk.";
+        case UPLOAD_ERR_EXTENSION:
+            return "Upload stopped by a PHP extension.";
+        default:
+            return "Upload failed.";
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     fail("Method not allowed.", 405);
 }
@@ -292,7 +313,7 @@ if (!isset($_FILES["zip"]["size"]) || $_FILES["zip"]["size"] > MAX_ZIP_BYTES) {
 }
 
 if ($_FILES["zip"]["error"] !== UPLOAD_ERR_OK) {
-    fail("Upload failed.");
+    fail(uploadErrorMessage((int) $_FILES["zip"]["error"]));
 }
 
 ensureDir($projectsRoot);

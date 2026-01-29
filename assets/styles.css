@@ -119,6 +119,11 @@ body {
   align-items: center;
 }
 
+.topbar-toggles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .btn {
   border: 1px solid var(--panel-edge);
   background: var(--panel);
@@ -534,7 +539,7 @@ a.btn {
 }
 
 .file-folder {
-  background: rgba(75, 28, 255, 0.06);
+  background: rgba(75, 28, 255, 0.21);
 }
 
 .file-folder .file-item-actions {
@@ -553,6 +558,11 @@ a.btn {
 .file-item.active {
   background: var(--accent-soft);
   border: 1px solid rgba(214, 90, 49, 0.3);
+}
+
+.file-item.folder-active {
+  background: rgba(75, 28, 255, 0.14);
+  border: 1px solid rgba(75, 28, 255, 0.28);
 }
 
 .file-item span {
@@ -811,7 +821,63 @@ a.btn {
   gap: 8px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
+  .topbar {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .brand {
+    order: 1;
+  }
+
+  .topbar-toggles {
+    order: 2;
+    flex: 1 1 200px;
+    justify-content: center;
+  }
+
+  .current-project {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .actions {
+    order: 4;
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .actions > * {
+    width: 100%;
+  }
+
+  .actions .btn,
+  .actions .project-manager .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .brand-subtitle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .brand-subtitle .subtle-icon {
+    margin-left: 0;
+  }
+
+  .current-project-row {
+    flex-wrap: wrap;
+  }
+
+  .current-project-row .meta-btn {
+    margin-left: 0;
+  }
+
   .workspace {
     flex-direction: column;
   }
@@ -831,19 +897,11 @@ a.btn {
     display: none;
   }
 
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .manager-panel {
     position: static;
     width: 100%;
   }
 
-  .current-project {
-    width: 100%;
-  }
 }
 
 :root[data-theme="light"] {
@@ -899,6 +957,12 @@ a.btn {
 
 :root[data-theme="dark"] .file-item.active {
   border-color: rgba(146, 128, 255, 0.4);
+}
+
+:root[data-theme="dark"] .file-item.folder-active {
+  background: rgba(123, 107, 255, 0.35);
+  border-color: rgba(123, 107, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(123, 107, 255, 0.35);
 }
 
 :root[data-theme="dark"] .binary-notice {
@@ -960,6 +1024,12 @@ a.btn {
 
   :root:not([data-theme]) .file-item.active {
     border-color: rgba(146, 128, 255, 0.4);
+  }
+
+  :root:not([data-theme]) .file-item.folder-active {
+    background: rgba(123, 107, 255, 0.35);
+    border-color: rgba(123, 107, 255, 0.7);
+    box-shadow: 0 0 0 1px rgba(123, 107, 255, 0.35);
   }
 
   :root:not([data-theme]) .binary-notice {

@@ -55,6 +55,7 @@ const state = {
   binaryDoc: null,
   emptyDoc: null,
   currentPath: null,
+  currentFolderPath: "",
   collapsedFolders: new Set(),
   previewUrls: [],
   saveTimer: null,
@@ -666,6 +667,9 @@ function renderFileTree() {
     item.style.paddingLeft = `${10 + depth * 14}px`;
     if (node.type === "folder") {
       item.classList.add("file-folder");
+      if (node.path === state.currentFolderPath) {
+        item.classList.add("folder-active");
+      }
     } else if (node.path === state.currentPath) {
       item.classList.add("active");
     }
@@ -747,7 +751,24 @@ function renderFileTree() {
         event.preventDefault();
         item.classList.remove("drag-over");
         const draggedPath = event.dataTransfer.getData("text/plain");
-        if (!draggedPath || isFolderEntry(draggedPath)) return;
+        if (!draggedPath) return;
+        if (isFolderEntry(draggedPath)) {
+          const folderPath = folderFromEntry(draggedPath);
+          const targetPath = `${node.path}/${basename(folderPath)}`;
+          if (isDescendantPath(targetPath, folderPath)) {
+            await showAlert("You can't move a folder into itself.", "Move folder");
+            return;
+          }
+          const result = renameFolder(folderPath, targetPath);
+          if (!result.ok) {
+            if (result.error) await showAlert(result.error, "Move folder");
+            return;
+          }
+          renderFileTree();
+          queueSave();
+          queuePreview();
+          return;
+        }
         const targetPath = `${node.path}/${basename(draggedPath)}`;
         const result = renameFile(draggedPath, targetPath);
         if (!result.ok) {
@@ -757,6 +778,14 @@ function renderFileTree() {
         renderFileTree();
         queueSave();
         queuePreview();
+      });
+      item.setAttribute("draggable", "true");
+      item.addEventListener("dragstart", (event) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", `${node.path}/.keep`);
+      });
+      item.addEventListener("click", () => {
+        state.currentFolderPath = node.path;
       });
     } else {
       const renameBtn = document.createElement("button");
@@ -822,6 +851,7 @@ function openFile(path) {
   const file = getFile(path);
   if (!file) return;
   state.currentPath = path;
+  state.currentFolderPath = dirname(path);
   elements.currentFileLabel.textContent = path;
   renderFileTree();
 
@@ -1225,6 +1255,11 @@ function isFolderEntry(path) {
 
 function folderFromEntry(path) {
   return path.replace(/\/\.keep$/, "");
+}
+
+function isDescendantPath(path, candidateParent) {
+  if (!path || !candidateParent) return false;
+  return path === candidateParent || path.startsWith(`${candidateParent}/`);
 }
 
 function basename(path) {
@@ -1859,8 +1894,13 @@ function setupEvents() {
     if (path) addFile(path);
   });
   elements.addFolderBtn.addEventListener("click", async () => {
-    const path = await showPrompt("New folder name (e.g. assets):", "", "New folder");
-    if (!path) return;
+    const base = state.currentFolderPath || "";
+    const label = base
+      ? `New folder name (inside ${base}):`
+      : "New folder name (e.g. assets):";
+    const input = await showPrompt(label, "", "New folder");
+    if (!input) return;
+    const path = base ? `${base}/${input}` : input;
     if (!addFolder(path)) {
       await showAlert("That folder already exists or is invalid.", "New folder");
     } else {
@@ -1920,7 +1960,21 @@ function setupEvents() {
     event.preventDefault();
     elements.fileTree.classList.remove("drag-root");
     const draggedPath = event.dataTransfer.getData("text/plain");
-    if (!draggedPath || isFolderEntry(draggedPath)) return;
+    if (!draggedPath) return;
+    if (isFolderEntry(draggedPath)) {
+      const folderPath = folderFromEntry(draggedPath);
+      const targetPath = basename(folderPath);
+      if (folderPath === targetPath) return;
+      const result = renameFolder(folderPath, targetPath);
+      if (!result.ok) {
+        if (result.error) await showAlert(result.error, "Move folder");
+        return;
+      }
+      renderFileTree();
+      queueSave();
+      queuePreview();
+      return;
+    }
     const targetPath = basename(draggedPath);
     if (draggedPath === targetPath) return;
     const result = renameFile(draggedPath, targetPath);
