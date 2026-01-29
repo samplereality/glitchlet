@@ -3,6 +3,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . "/auth.php";
 
+$lockPath = dirname(__DIR__) . "/install.lock";
+if (file_exists($lockPath)) {
+    http_response_code(403);
+    echo "Bootstrap disabled.";
+    exit;
+}
+
 $pdo = db();
 $error = "";
 

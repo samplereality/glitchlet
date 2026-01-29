@@ -2,11 +2,14 @@ const DB_NAME = "glitchlite-db";
 const STORE_NAME = "projects";
 const DEFAULT_PROJECT_ID = "default";
 const PUBLISH_ENDPOINT = new URL("/publish/publish.php", window.location.origin).toString();
+const APP_VERSION = window.GLITCHLET_VERSION || "dev";
+const STARTER_TEMPLATE_ZIP = "starter_template.zip";
 const PUBLISH_LOCKED_LABEL =
   "Publishing is only for logged in users. Contact your Glitchlet admin to create an account.";
 const THEME_STORAGE_KEY = "stitch:theme";
 const EDITOR_THEME_KEY = "stitch:editor-theme";
 const LINE_WRAP_KEY = "stitch:line-wrap";
+const TUTORIAL_STORAGE_KEY = "stitch:tutorial-mode";
 const CURRENT_PROJECT_KEY = "stitch:current-project";
 const DEFAULT_PROJECT_NAME = "Untitled Project";
 const TEXT_EXTS = new Set([
@@ -60,6 +63,7 @@ const state = {
   suppressEditorChange: false,
   isResizing: false,
   authUser: null,
+  tutorialMode: false,
 };
 
 const elements = {
@@ -111,8 +115,10 @@ const elements = {
   openPublishUrlBtn: document.getElementById("openPublishUrlBtn"),
   aboutBtn: document.getElementById("aboutBtn"),
   aboutModal: document.getElementById("aboutModal"),
+  aboutVersion: document.getElementById("aboutVersion"),
   closeAboutBtn: document.getElementById("closeAboutBtn"),
   dismissAboutBtn: document.getElementById("dismissAboutBtn"),
+  tutorialToggleBtn: document.getElementById("tutorialToggleBtn"),
   accountBtn: document.getElementById("accountBtn"),
   accountModal: document.getElementById("accountModal"),
   closeAccountModalBtn: document.getElementById("closeAccountModalBtn"),
@@ -156,6 +162,8 @@ let codeMirror = null;
 let lineWrappingEnabled = false;
 let dialogResolver = null;
 let dialogMode = "alert";
+let tutorialTooltip = null;
+let tutorialTarget = null;
 
 function openDialog(options = {}) {
   const {
@@ -688,6 +696,9 @@ function renderFileTree() {
       renameFolderBtn.className = "icon-btn";
       renameFolderBtn.innerHTML = "<i data-lucide=\"pencil\"></i>";
       renameFolderBtn.title = "Rename folder";
+      renameFolderBtn.dataset.tutorialTitle = "Rename folder";
+      renameFolderBtn.dataset.tutorial = "Rename this folder and everything inside it.";
+      bindTutorialTarget(renameFolderBtn);
       renameFolderBtn.addEventListener("click", async (event) => {
         event.stopPropagation();
         const next = await showPrompt("Rename folder:", node.path, "Rename folder");
@@ -706,6 +717,9 @@ function renderFileTree() {
       removeFolderBtn.className = "icon-btn";
       removeFolderBtn.innerHTML = "<i data-lucide=\"trash-2\"></i>";
       removeFolderBtn.title = "Delete folder";
+      removeFolderBtn.dataset.tutorialTitle = "Delete folder";
+      removeFolderBtn.dataset.tutorial = "Delete the folder and all of its files.";
+      bindTutorialTarget(removeFolderBtn);
       removeFolderBtn.addEventListener("click", async (event) => {
         event.stopPropagation();
         const confirmed = await showConfirm(
@@ -749,6 +763,9 @@ function renderFileTree() {
       renameBtn.className = "icon-btn";
       renameBtn.innerHTML = "<i data-lucide=\"pencil\"></i>";
       renameBtn.title = "Rename file";
+      renameBtn.dataset.tutorialTitle = "Rename file";
+      renameBtn.dataset.tutorial = "Rename this file without changing its contents.";
+      bindTutorialTarget(renameBtn);
       renameBtn.addEventListener("click", async (event) => {
         event.stopPropagation();
         const next = await showPrompt("Rename file:", node.path, "Rename file");
@@ -767,6 +784,9 @@ function renderFileTree() {
       removeBtn.className = "icon-btn";
       removeBtn.innerHTML = "<i data-lucide=\"trash-2\"></i>";
       removeBtn.title = "Delete file";
+      removeBtn.dataset.tutorialTitle = "Delete file";
+      removeBtn.dataset.tutorial = "Remove this file from the project.";
+      bindTutorialTarget(removeBtn);
       removeBtn.addEventListener("click", async (event) => {
         event.stopPropagation();
         const confirmed = await showConfirm(`Delete ${node.path}?`, "Delete file");
@@ -1159,9 +1179,12 @@ async function loadInitialProject() {
   if (stored && stored.files?.length) {
     loadProject(stored);
   } else {
-    const defaults = createDefaultFiles();
-    defaults.forEach((file) => setFile({ ...file }));
-    await dbSet(state.projectId, serializeProject());
+    const loadedStarter = await loadStarterTemplate();
+    if (!loadedStarter) {
+      const defaults = createDefaultFiles();
+      defaults.forEach((file) => setFile({ ...file }));
+      await dbSet(state.projectId, serializeProject());
+    }
   }
 
   renderFileTree();
@@ -1340,41 +1363,7 @@ async function importZip(file) {
   try {
     const JSZip = await ensureJSZip();
     const zip = await JSZip.loadAsync(file);
-    state.files = new Map();
-    state.editorDocs = new Map();
-    const entries = Object.keys(zip.files);
-    const fileEntries = [];
-    for (const path of entries) {
-      const entry = zip.files[path];
-      if (entry.dir) continue;
-      const normalized = normalizePath(path);
-      if (!normalized || isHiddenPath(normalized)) {
-        continue;
-      }
-      fileEntries.push({ entry, path: normalized });
-    }
-    const paths = fileEntries.map(({ path }) => path);
-    const rootPrefix = computeImportRootPrefix(paths);
-    const dirSet = computeDirSet(paths);
-
-    for (const item of fileEntries) {
-      const entry = item.entry;
-      const normalized = rootPrefix && item.path.startsWith(rootPrefix)
-        ? item.path.slice(rootPrefix.length)
-        : item.path;
-      if (!normalized || isHiddenPath(normalized) || dirSet.has(normalized)) {
-        continue;
-      }
-      const kind = isTextFile(normalized) ? "text" : "binary";
-      if (kind === "text") {
-        const content = await entry.async("string");
-        const cleaned = stripLeadingSlashUrls(content);
-        setFile({ path: normalized, kind: "text", data: cleaned, mime: fileMime(normalized) });
-      } else {
-        const buffer = await entry.async("arraybuffer");
-        setFile({ path: normalized, kind: "binary", data: buffer, mime: fileMime(normalized) });
-      }
-    }
+    await applyZipContents(zip);
     renderFileTree();
     openFirstFile();
     queueSave();
@@ -1382,6 +1371,60 @@ async function importZip(file) {
   } catch (error) {
     console.error(error);
     await showAlert("Import failed. Check the console for details.", "Import");
+  }
+}
+
+async function applyZipContents(zip) {
+  state.files = new Map();
+  state.editorDocs = new Map();
+  const entries = Object.keys(zip.files);
+  const fileEntries = [];
+  for (const path of entries) {
+    const entry = zip.files[path];
+    if (entry.dir) continue;
+    const normalized = normalizePath(path);
+    if (!normalized || isHiddenPath(normalized)) {
+      continue;
+    }
+    fileEntries.push({ entry, path: normalized });
+  }
+  const paths = fileEntries.map(({ path }) => path);
+  const rootPrefix = computeImportRootPrefix(paths);
+  const dirSet = computeDirSet(paths);
+
+  for (const item of fileEntries) {
+    const entry = item.entry;
+    const normalized = rootPrefix && item.path.startsWith(rootPrefix)
+      ? item.path.slice(rootPrefix.length)
+      : item.path;
+    if (!normalized || isHiddenPath(normalized) || dirSet.has(normalized)) {
+      continue;
+    }
+    const kind = isTextFile(normalized) ? "text" : "binary";
+    if (kind === "text") {
+      const content = await entry.async("string");
+      const cleaned = stripLeadingSlashUrls(content);
+      setFile({ path: normalized, kind: "text", data: cleaned, mime: fileMime(normalized) });
+    } else {
+      const buffer = await entry.async("arraybuffer");
+      setFile({ path: normalized, kind: "binary", data: buffer, mime: fileMime(normalized) });
+    }
+  }
+}
+
+async function loadStarterTemplate() {
+  try {
+    const response = await fetch(STARTER_TEMPLATE_ZIP, { cache: "no-store" });
+    if (!response.ok) return false;
+    const JSZip = await ensureJSZip();
+    const blob = await response.blob();
+    const zip = await JSZip.loadAsync(blob);
+    await applyZipContents(zip);
+    await dbSet(state.projectId, serializeProject());
+    return true;
+  } catch (error) {
+    console.warn("Failed to load starter template.", error);
+    return false;
   }
 }
 
@@ -1550,25 +1593,23 @@ function isDarkTheme(theme) {
 
 function updateThemeToggleLabel(theme) {
   if (!elements.themeToggleBtn) return;
-  const mode = theme || "auto";
-  const order = ["auto", "light", "dark"];
-  const nextMode = order[(order.indexOf(mode) + 1) % order.length];
+  const mode = theme === "dark" ? "dark" : "light";
+  const nextMode = mode === "dark" ? "light" : "dark";
   elements.themeToggleBtn.title = `Theme: ${mode[0].toUpperCase()}${mode.slice(1)} (switch to ${nextMode})`;
 }
 
 function applyTheme(theme) {
-  if (theme === "dark" || theme === "light") {
-    document.documentElement.setAttribute("data-theme", theme);
-  } else {
-    document.documentElement.removeAttribute("data-theme");
-  }
-  updateThemeToggleLabel(theme);
+  const resolved = theme === "dark" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", resolved);
+  updateThemeToggleLabel(resolved);
 }
 
 function toggleTheme() {
-  const stored = localStorage.getItem(THEME_STORAGE_KEY) || "auto";
-  const order = ["auto", "light", "dark"];
-  const next = order[(order.indexOf(stored) + 1) % order.length];
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  const current = stored === "dark" || stored === "light"
+    ? stored
+    : (isDarkTheme(null) ? "dark" : "light");
+  const next = current === "dark" ? "light" : "dark";
   localStorage.setItem(THEME_STORAGE_KEY, next);
   applyTheme(next);
 }
@@ -1626,6 +1667,9 @@ function setupEvents() {
   elements.exportZipBtn.addEventListener("click", exportZip);
   elements.publishBtn.addEventListener("click", publishProject);
   elements.themeToggleBtn.addEventListener("click", toggleTheme);
+  if (elements.tutorialToggleBtn) {
+    elements.tutorialToggleBtn.addEventListener("click", toggleTutorialMode);
+  }
   elements.editorThemeToggleBtn.addEventListener("click", toggleEditorTheme);
   elements.wrapToggleBtn.addEventListener("click", toggleLineWrap);
   elements.searchBtn.addEventListener("click", async () => {
@@ -1655,6 +1699,12 @@ function setupEvents() {
   elements.saveProjectMetaBtn.addEventListener("click", saveProjectMeta);
   elements.projectMetaModal.addEventListener("click", (event) => {
     if (event.target.classList.contains("modal-backdrop")) {
+      saveProjectMeta();
+    }
+  });
+  elements.projectMetaModal.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
       saveProjectMeta();
     }
   });
@@ -1889,6 +1939,8 @@ function setupEvents() {
       elements.projectManagerBtn.contains(event.target);
     if (!isInside) toggleProjectManager(false);
   });
+
+  registerTutorialTargets();
 }
 
 function setFilePanelCollapsed(collapsed) {
@@ -1919,19 +1971,13 @@ function applyStoredLayout() {
 
 function applyStoredTheme() {
   const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-  applyTheme(storedTheme);
-  if (window.matchMedia) {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      if (!localStorage.getItem(THEME_STORAGE_KEY) || localStorage.getItem(THEME_STORAGE_KEY) === "auto") {
-        updateThemeToggleLabel("auto");
-        if (!localStorage.getItem(EDITOR_THEME_KEY)) {
-          applyEditorTheme(null);
-        }
-      }
-    };
-    media.addEventListener("change", handler);
+  if (storedTheme === "dark" || storedTheme === "light") {
+    applyTheme(storedTheme);
+    return;
   }
+  const systemTheme = isDarkTheme(null) ? "dark" : "light";
+  localStorage.setItem(THEME_STORAGE_KEY, systemTheme);
+  applyTheme(systemTheme);
 }
 
 function updateProjectManagerFields() {
@@ -2019,7 +2065,104 @@ function closePublishModal() {
   elements.publishModal.classList.add("hidden");
 }
 
+function initTutorialTooltip() {
+  tutorialTooltip = document.createElement("div");
+  tutorialTooltip.className = "tutorial-tooltip hidden";
+  tutorialTooltip.innerHTML =
+    "<div class=\"tutorial-tooltip-title\"></div><div class=\"tutorial-tooltip-body\"></div>";
+  document.body.appendChild(tutorialTooltip);
+}
+
+function bindTutorialTarget(target) {
+  if (!target || !target.dataset || !target.dataset.tutorial) return;
+  target.addEventListener("mouseenter", () => showTutorialTooltip(target));
+  target.addEventListener("mouseleave", hideTutorialTooltip);
+  target.addEventListener("focus", () => showTutorialTooltip(target));
+  target.addEventListener("blur", hideTutorialTooltip);
+}
+
+function positionTutorialTooltip(target) {
+  if (!tutorialTooltip) return;
+  const tooltipRect = tutorialTooltip.getBoundingClientRect();
+  const rect = target.getBoundingClientRect();
+  const margin = 12;
+  let top = rect.bottom + margin;
+  let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+  if (top + tooltipRect.height > window.innerHeight - margin) {
+    top = rect.top - tooltipRect.height - margin;
+  }
+  left = Math.max(margin, Math.min(left, window.innerWidth - tooltipRect.width - margin));
+  tutorialTooltip.style.top = `${Math.round(top)}px`;
+  tutorialTooltip.style.left = `${Math.round(left)}px`;
+}
+
+function showTutorialTooltip(target) {
+  if (!state.tutorialMode || !tutorialTooltip || !target) return;
+  const body = target.dataset.tutorial;
+  if (!body) return;
+  const title = target.dataset.tutorialTitle || "Tip";
+  const titleEl = tutorialTooltip.querySelector(".tutorial-tooltip-title");
+  const bodyEl = tutorialTooltip.querySelector(".tutorial-tooltip-body");
+  if (titleEl) titleEl.textContent = title;
+  if (bodyEl) bodyEl.textContent = body;
+  tutorialTooltip.classList.remove("hidden");
+  tutorialTooltip.classList.add("show");
+  tutorialTarget = target;
+  target.classList.add("tutorial-highlight");
+  requestAnimationFrame(() => positionTutorialTooltip(target));
+}
+
+function hideTutorialTooltip() {
+  if (!tutorialTooltip) return;
+  tutorialTooltip.classList.remove("show");
+  tutorialTooltip.classList.add("hidden");
+  if (tutorialTarget) {
+    tutorialTarget.classList.remove("tutorial-highlight");
+    tutorialTarget = null;
+  }
+}
+
+function registerTutorialTargets() {
+  if (!tutorialTooltip) initTutorialTooltip();
+  const targets = Array.from(document.querySelectorAll("[data-tutorial]"));
+  targets.forEach((target) => bindTutorialTarget(target));
+  window.addEventListener("resize", () => {
+    if (tutorialTarget) positionTutorialTooltip(tutorialTarget);
+  });
+  window.addEventListener("scroll", hideTutorialTooltip, true);
+}
+
+function updateTutorialToggle() {
+  if (!elements.tutorialToggleBtn) return;
+  const hasBtnStyle = elements.tutorialToggleBtn.classList.contains("btn");
+  const hasIconStyle = elements.tutorialToggleBtn.classList.contains("icon-btn");
+  elements.tutorialToggleBtn.classList.toggle("btn-primary", state.tutorialMode && hasBtnStyle);
+  elements.tutorialToggleBtn.classList.toggle("is-active", state.tutorialMode && hasIconStyle);
+  elements.tutorialToggleBtn.setAttribute(
+    "aria-pressed",
+    state.tutorialMode ? "true" : "false"
+  );
+  elements.tutorialToggleBtn.title = state.tutorialMode
+    ? "Tutorial mode: On"
+    : "Tutorial mode: Off";
+}
+
+function setTutorialMode(enabled) {
+  state.tutorialMode = enabled;
+  localStorage.setItem(TUTORIAL_STORAGE_KEY, enabled ? "1" : "0");
+  document.body.classList.toggle("tutorial-mode", enabled);
+  updateTutorialToggle();
+  if (!enabled) hideTutorialTooltip();
+}
+
+function toggleTutorialMode() {
+  setTutorialMode(!state.tutorialMode);
+}
+
 function openAboutModal() {
+  if (elements.aboutVersion) {
+    elements.aboutVersion.textContent = APP_VERSION;
+  }
   elements.aboutModal.classList.remove("hidden");
   refreshIcons();
 }
@@ -2262,6 +2405,7 @@ function toggleLineWrap() {
 }
 
 lineWrappingEnabled = localStorage.getItem(LINE_WRAP_KEY) === "1";
+state.tutorialMode = localStorage.getItem(TUTORIAL_STORAGE_KEY) === "1";
 initCodeMirror();
 refreshIcons();
 applyLineWrapSetting();
@@ -2269,6 +2413,7 @@ applyStoredTheme();
 applyEditorTheme(localStorage.getItem(EDITOR_THEME_KEY));
 applyStoredLayout();
 setupEvents();
+setTutorialMode(state.tutorialMode);
 setAuthUser(null);
 fetchSession();
 loadInitialProject();

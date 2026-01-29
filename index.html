@@ -30,7 +30,7 @@
           <div class="brand-text">
             <span class="brand-title">Glitchlet</span>
             <span class="brand-subtitle">
-              A Creative Coding Workbench Inspired by Glitch
+              Creative Coding Workbench
               <button id="aboutBtn" class="icon-btn subtle-icon" title="About Glitchlet">
                 <i data-lucide="heart-handshake"></i>
               </button>
@@ -41,18 +41,26 @@
           <span class="current-project-label">Project</span>
           <div class="current-project-row">
             <span id="currentProjectName" class="current-project-name">Untitled Project</span>
-            <button id="projectMetaBtn" class="meta-btn" title="Edit project details">
+            <button
+              id="projectMetaBtn"
+              class="meta-btn"
+              title="Edit project details"
+              data-tutorial-title="Project details"
+              data-tutorial="Add a title, creator name, and description for publishing."
+            >
               <i data-lucide="pencil"></i>
             </button>
           </div>
         </div>
         <div class="actions">
-          <button id="themeToggleBtn" class="icon-btn" title="Switch theme mode">
-            <i data-lucide="sun-moon"></i>
-          </button>
-          <button id="accountBtn" class="btn" title="Account">Guest</button>
           <div class="project-manager">
-            <button id="projectManagerBtn" class="btn" title="Open project manager">Project Manager</button>
+            <button
+              id="projectManagerBtn"
+              class="btn"
+              title="Open project manager"
+              data-tutorial-title="Project manager"
+              data-tutorial="Switch between saved projects, rename them, or start new ones. Import and export ZIPs, including archived Glitch projects."
+            >Project Manager</button>
             <div id="projectManagerPanel" class="manager-panel hidden" role="dialog" aria-label="Project manager">
               <div class="manager-header">
                 <span>Project Manager</span>
@@ -72,39 +80,114 @@
                   <button id="newProjectBtn" class="btn">New Project</button>
                 </div>
               </div>
-              <div class="manager-section">
+              <div class="manager-section" data-tutorial-title="Project list" data-tutorial="Select a project to load it into the editor.">
                 <div class="manager-label">Projects</div>
                 <div id="projectList" class="project-list"></div>
               </div>
               <div class="manager-section">
                 <div class="manager-label">Import / Export</div>
                 <div class="manager-row">
-                  <button id="importZipBtn" class="btn">Import ZIP</button>
-                  <button id="exportZipBtn" class="btn">Export ZIP</button>
+                  <button
+                    id="importZipBtn"
+                    class="btn"
+                    data-tutorial-title="Import ZIP"
+                    data-tutorial="Load a ZIP file into the current project."
+                  >Import ZIP</button>
+                  <button
+                    id="exportZipBtn"
+                    class="btn"
+                    data-tutorial-title="Export ZIP"
+                    data-tutorial="Download your project as a ZIP archive."
+                  >Export ZIP</button>
                 </div>
               </div>
             </div>
           </div>
-          <a class="btn" href="/projects/index.html" target="_blank" rel="noopener">Published Projects</a>
-          <button id="publishBtn" class="btn btn-primary">Publish</button>
+          <button
+            id="publishBtn"
+            class="btn btn-primary"
+            data-tutorial-title="Publish"
+            data-tutorial="Send this project to the server and get a shareable URL."
+          >Publish</button>
+          <a
+            class="btn"
+            href="/projects/index.html"
+            target="_blank"
+            rel="noopener"
+            data-tutorial-title="Published projects"
+            data-tutorial="Browse all published projects on this server."
+          >Published Projects</a>
+          <button
+            id="accountBtn"
+            class="btn"
+            title="Account"
+            data-tutorial-title="Account"
+            data-tutorial="Sign in to publish projects and manage your account."
+          >Guest</button>
+          <button
+            id="tutorialToggleBtn"
+            class="icon-btn"
+            title="Toggle tutorial mode"
+            data-tutorial-title="Tutorial mode"
+            data-tutorial="Turn on guided tips that explain the main controls as you hover."
+          >
+            <i data-lucide="circle-help"></i>
+          </button>
+          <button
+            id="themeToggleBtn"
+            class="icon-btn"
+            title="Switch theme mode"
+            data-tutorial-title="Theme"
+            data-tutorial="Switch between light and dark themes for the overall app."
+          >
+            <i data-lucide="sun-moon"></i>
+          </button>
         </div>
       </header>
 
       <main class="workspace" id="workspace">
-        <aside class="panel file-panel">
+        <aside
+          class="panel file-panel"
+          data-tutorial-title="Files pane"
+          data-tutorial="Create, upload, and organize files for your project."
+        >
           <div class="panel-header">
             <span>Files</span>
             <div class="panel-actions">
-              <button id="toggleFilePanelBtn" class="icon-btn" title="Collapse files">
+              <button
+                id="toggleFilePanelBtn"
+                class="icon-btn"
+                title="Collapse files"
+                data-tutorial-title="Collapse files"
+                data-tutorial="Hide the file tree to make more room for editing."
+              >
                 <i data-lucide="chevrons-left"></i>
               </button>
-              <button id="addFolderBtn" class="icon-btn" title="New folder">
+              <button
+                id="addFolderBtn"
+                class="icon-btn"
+                title="New folder"
+                data-tutorial-title="New folder"
+                data-tutorial="Create a new folder to organize files."
+              >
                 <i data-lucide="folder-plus"></i>
               </button>
-              <button id="addFileBtn" class="icon-btn" title="Add file">
+              <button
+                id="addFileBtn"
+                class="icon-btn"
+                title="Add file"
+                data-tutorial-title="Add file"
+                data-tutorial="Create a new file in the selected folder."
+              >
                 <i data-lucide="file-plus"></i>
               </button>
-              <button id="uploadFileBtn" class="icon-btn" title="Upload files">
+              <button
+                id="uploadFileBtn"
+                class="icon-btn"
+                title="Upload files"
+                data-tutorial-title="Upload files"
+                data-tutorial="Add files from your computer into the project."
+              >
                 <i data-lucide="upload"></i>
               </button>
             </div>
@@ -112,38 +195,96 @@
           <div id="fileTree" class="file-tree"></div>
         </aside>
 
-        <section class="panel editor-panel">
+        <section
+          class="panel editor-panel"
+          data-tutorial-title="Editor pane"
+          data-tutorial="Edit your project files here. Formatting and search tools live in the header."
+        >
           <div class="panel-header">
             <div class="panel-title">
               <span id="currentFileLabel">Select a file</span>
               <span id="saveStatus" class="status"></span>
             </div>
             <div class="panel-actions">
-              <button id="expandFilePanelBtn" class="icon-btn hidden" title="Show files">
+              <button
+                id="expandFilePanelBtn"
+                class="icon-btn hidden"
+                title="Show files"
+                data-tutorial-title="Show files"
+                data-tutorial="Bring the file list back if it is hidden."
+              >
                 <i data-lucide="folder-open"></i>
               </button>
-              <button id="undoBtn" class="icon-btn" title="Undo last change">
+              <button
+                id="undoBtn"
+                class="icon-btn"
+                title="Undo last change"
+                data-tutorial-title="Undo"
+                data-tutorial="Step back through recent edits."
+              >
                 <i data-lucide="undo-2"></i>
               </button>
-              <button id="redoBtn" class="icon-btn" title="Redo last change">
+              <button
+                id="redoBtn"
+                class="icon-btn"
+                title="Redo last change"
+                data-tutorial-title="Redo"
+                data-tutorial="Step forward through changes you just undid."
+              >
                 <i data-lucide="redo-2"></i>
               </button>
-              <button id="wrapToggleBtn" class="icon-btn" title="Toggle line wrap">
+              <button
+                id="wrapToggleBtn"
+                class="icon-btn"
+                title="Toggle line wrap"
+                data-tutorial-title="Line wrap"
+                data-tutorial="Keep long lines wrapped within the editor."
+              >
                 <i data-lucide="wrap-text"></i>
               </button>
-              <button id="searchBtn" class="icon-btn" title="Search">
+              <button
+                id="searchBtn"
+                class="icon-btn"
+                title="Search"
+                data-tutorial-title="Search"
+                data-tutorial="Find text in the current file."
+              >
                 <i data-lucide="search"></i>
               </button>
-              <button id="foldAllBtn" class="icon-btn" title="Fold all">
+              <button
+                id="foldAllBtn"
+                class="icon-btn"
+                title="Fold all"
+                data-tutorial-title="Fold all"
+                data-tutorial="Collapse all code blocks in the editor."
+              >
                 <i data-lucide="fold-vertical"></i>
               </button>
-              <button id="unfoldAllBtn" class="icon-btn" title="Unfold all">
+              <button
+                id="unfoldAllBtn"
+                class="icon-btn"
+                title="Unfold all"
+                data-tutorial-title="Unfold all"
+                data-tutorial="Expand all code blocks in the editor."
+              >
                 <i data-lucide="unfold-vertical"></i>
               </button>
-              <button id="prettifyBtn" class="icon-btn" title="Format current file">
+              <button
+                id="prettifyBtn"
+                class="icon-btn"
+                title="Format current file"
+                data-tutorial-title="Format"
+                data-tutorial="Auto-format the current file using Prettier."
+              >
                 <i data-lucide="wand-2"></i>
               </button>
-              <button id="editorThemeToggleBtn" class="icon-btn" title="Toggle editor theme">
+              <button
+                id="editorThemeToggleBtn"
+                class="icon-btn"
+                title="Toggle editor theme"
+                data-tutorial-title="Editor theme"
+                data-tutorial="Switch the editor color theme without changing the app theme."
+              >
                 <i data-lucide="moon-star"></i>
               </button>
             </div>
@@ -156,13 +297,30 @@
           </div>
         </section>
 
-        <div class="splitter" id="editorPreviewSplitter" role="separator" aria-label="Resize editor"></div>
+        <div
+          class="splitter"
+          id="editorPreviewSplitter"
+          role="separator"
+          aria-label="Resize editor"
+          data-tutorial-title="Resize panes"
+          data-tutorial="Drag to resize the editor and preview panes."
+        ></div>
 
-        <section class="panel preview-panel">
+        <section
+          class="panel preview-panel"
+          data-tutorial-title="Preview pane"
+          data-tutorial="See your project running live. Use refresh if it looks out of date."
+        >
           <div class="panel-header">
             <span>Preview</span>
             <div class="panel-actions">
-              <button id="refreshPreviewBtn" class="icon-btn" title="Refresh preview">
+              <button
+                id="refreshPreviewBtn"
+                class="icon-btn"
+                title="Refresh preview"
+                data-tutorial-title="Refresh preview"
+                data-tutorial="Reload the preview frame."
+              >
                 <i data-lucide="refresh-cw"></i>
               </button>
             </div>
@@ -321,6 +479,9 @@
           <p class="modal-text">
             Created by Mark Sample to help students and hobbyists publish and remix web projects.
           </p>
+          <p class="modal-text modal-version">
+            Version: <span id="aboutVersion">--</span>
+          </p>
           <p class="modal-text">
             Source: <a class="modal-link" href="https://github.com/samplereality/glitchlet/" target="_blank" rel="noopener">github.com/samplereality/glitchlet</a>
           </p>
@@ -356,6 +517,7 @@
     <script src="https://unpkg.com/prettier@3.8.0/plugins/html.js"></script>
     <script src="https://unpkg.com/prettier@3.8.0/plugins/postcss.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="assets/version.js"></script>
     <script src="assets/app.js"></script>
   </body>
 </html>

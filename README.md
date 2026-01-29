@@ -35,10 +35,26 @@ These instructions assume a typical shared host (e.g., Reclaim Hosting) with PHP
 - ZIP import/export uses JSZip from a CDN by default. If you need fully offline hosting, download JSZip locally and update `ensureJSZip()` in `assets/app.js`.
 - Account emails use SMTP settings in `publish/config.php` (Gmail app passwords supported).
 - Keep `publish/config.php` private. It is ignored by git; do not commit SMTP or DB credentials.
+- `/publish/bootstrap.php` is disabled when `install.lock` exists.
+
+## Versioning
+
+- Version lives in `VERSION` and is exposed to the app via `assets/version.js`.
+- Bump with `scripts/bump-version.sh`:
+  - `scripts/bump-version.sh patch` (or `minor` / `major`)
+  - `scripts/bump-version.sh 1.2.3` to set an explicit version.
+
+## Tutorial mode
+
+- Use the Tutorial button in the top bar to toggle hover tips for the main controls and panes.
+
+## Starter template
+
+- Place a `starter_template.zip` file at the site root to define the default project that loads on first visit.
+- Replace the zip contents to customize the starter project for your install.
 
 ## Roadmap
 
-- PHP publishing endpoint + token auth
 - Project manager (list, rename, delete)
 - Instructor template catalog
 

@@ -10,6 +10,9 @@
   --accent-strong: #3512c7;
   --accent-soft: #e8e1ff;
   --shadow: 0 18px 40px rgba(20, 16, 60, 0.12);
+  --tooltip-bg: #1b1736;
+  --tooltip-ink: #f6f4ff;
+  --tooltip-shadow: 0 16px 32px rgba(20, 16, 60, 0.28);
   --page-bg: radial-gradient(circle at top left, #ffffff 0%, #f5f2ff 45%, #e8f5ff 100%);
   --radius: 16px;
   --mono: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
@@ -139,6 +142,43 @@ a.btn {
 .btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(31, 29, 26, 0.12);
+}
+
+.tutorial-tooltip {
+  position: fixed;
+  z-index: 2000;
+  max-width: 280px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-ink);
+  box-shadow: var(--tooltip-shadow);
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.tutorial-tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tutorial-tooltip-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 6px;
+  opacity: 0.85;
+}
+
+.tutorial-highlight {
+  outline: 2px solid rgba(75, 28, 255, 0.35);
+  outline-offset: 3px;
+  border-radius: 12px;
 }
 
 .btn-primary {
@@ -706,6 +746,10 @@ a.btn {
   color: var(--muted);
 }
 
+.modal-version {
+  color: var(--ink);
+}
+
 #loginError {
   color: #b00020;
   font-weight: 600;
@@ -811,18 +855,46 @@ a.btn {
   --bg: #0f1020;
   --bg-accent: #1b1a33;
   --ink: #f1f1ff;
-  --muted: #a7a2c9;
-  --panel: #17162a;
-  --panel-edge: #2a264d;
-  --accent: #6d5cff;
+  --muted: #c2bddf;
+  --panel: #151326;
+  --panel-edge: #3a3563;
+  --accent: #7b6bff;
   --accent-strong: #5141d7;
   --accent-soft: #2b2552;
   --shadow: 0 18px 40px rgba(6, 6, 14, 0.5);
+  --tooltip-bg: #f6f4ff;
+  --tooltip-ink: #1b1736;
+  --tooltip-shadow: 0 18px 36px rgba(6, 6, 14, 0.45);
   --page-bg: radial-gradient(circle at top left, #1a1733 0%, #0f0f1f 55%, #0b0b17 100%);
 }
 
 :root[data-theme="dark"] .btn:hover {
   box-shadow: 0 6px 16px rgba(10, 10, 20, 0.45);
+}
+
+:root[data-theme="dark"] .modal-backdrop {
+  background: rgba(6, 6, 14, 0.7);
+}
+
+:root[data-theme="dark"] .modal-panel {
+  background: #1d1a36;
+  border-color: #4a4580;
+  box-shadow: 0 24px 60px rgba(6, 6, 14, 0.6);
+}
+
+:root[data-theme="dark"] .manager-panel {
+  background: #1d1a36;
+  border-color: #4a4580;
+  box-shadow: 0 24px 60px rgba(6, 6, 14, 0.6);
+}
+
+:root[data-theme="dark"] .splitter {
+  background: rgba(123, 107, 255, 0.35);
+}
+
+:root[data-theme="dark"] .splitter:hover,
+:root[data-theme="dark"] .resizing .splitter {
+  background: rgba(123, 107, 255, 0.65);
 }
 
 :root[data-theme="dark"] .file-item.active {
@@ -844,18 +916,46 @@ a.btn {
     --bg: #0f1020;
     --bg-accent: #1b1a33;
     --ink: #f1f1ff;
-    --muted: #a7a2c9;
-    --panel: #17162a;
-    --panel-edge: #2a264d;
-    --accent: #6d5cff;
+    --muted: #c2bddf;
+    --panel: #151326;
+    --panel-edge: #3a3563;
+    --accent: #7b6bff;
     --accent-strong: #5141d7;
     --accent-soft: #2b2552;
     --shadow: 0 18px 40px rgba(6, 6, 14, 0.5);
+    --tooltip-bg: #f6f4ff;
+    --tooltip-ink: #1b1736;
+    --tooltip-shadow: 0 18px 36px rgba(6, 6, 14, 0.45);
     --page-bg: radial-gradient(circle at top left, #1a1733 0%, #0f0f1f 55%, #0b0b17 100%);
   }
 
   :root:not([data-theme]) .btn:hover {
     box-shadow: 0 6px 16px rgba(10, 10, 20, 0.45);
+  }
+
+  :root:not([data-theme]) .modal-backdrop {
+    background: rgba(6, 6, 14, 0.7);
+  }
+
+  :root:not([data-theme]) .modal-panel {
+    background: #1d1a36;
+    border-color: #4a4580;
+    box-shadow: 0 24px 60px rgba(6, 6, 14, 0.6);
+  }
+
+  :root:not([data-theme]) .manager-panel {
+    background: #1d1a36;
+    border-color: #4a4580;
+    box-shadow: 0 24px 60px rgba(6, 6, 14, 0.6);
+  }
+
+  :root:not([data-theme]) .splitter {
+    background: rgba(123, 107, 255, 0.35);
+  }
+
+  :root:not([data-theme]) .splitter:hover,
+  :root:not([data-theme]) .resizing .splitter {
+    background: rgba(123, 107, 255, 0.65);
   }
 
   :root:not([data-theme]) .file-item.active {

@@ -129,7 +129,23 @@ $values = [
 ];
 
 if (file_exists($lockPath)) {
-    $errors[] = "Installer is locked. Delete install.lock to re-run.";
+    http_response_code(403);
+    echo "<!doctype html><html><head><meta charset=\"utf-8\" />"
+        . "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />"
+        . "<title>Installer Locked</title>"
+        . "<style>"
+        . "body{margin:0;font-family:Arial,sans-serif;background:#f6f6fb;color:#1b1736;"
+        . "display:grid;place-items:center;min-height:100vh;}"
+        . ".panel{background:#fff;border-radius:18px;padding:20px 22px;box-shadow:0 14px 28px rgba(0,0,0,0.08);"
+        . "max-width:520px;text-align:center;}"
+        . "h1{margin:0 0 10px;font-size:24px;}"
+        . "p{margin:0;color:#5b5875;}"
+        . "</style></head><body><div class=\"panel\">"
+        . "<h1>Installer locked</h1>"
+        . "<p>Delete install.lock to re-run the installer.</p>"
+        . "<p><a href=\"/\">Back to Glitchlet</a></p>"
+        . "</div></body></html>";
+    exit;
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && !$errors) {
@@ -213,6 +229,7 @@ echo "<!doctype html><html><head><meta charset=\"utf-8\" />"
     . "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />"
     . "<title>Glitchlet Installer</title>"
     . "<style>"
+    . "*{box-sizing:border-box;}"
     . "body{margin:0;font-family:Arial,sans-serif;background:#f6f6fb;color:#1b1736;}"
     . ".wrap{max-width:720px;margin:0 auto;padding:32px 20px;}"
     . "h1{margin:0 0 16px;font-size:28px;}"
@@ -221,6 +238,7 @@ echo "<!doctype html><html><head><meta charset=\"utf-8\" />"
     . "label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5b5875;}"
     . "input{padding:10px;border-radius:10px;border:1px solid #ddd;font-size:14px;width:100%;}"
     . ".row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}"
+    . ".row>div{display:flex;flex-direction:column;gap:6px;}"
     . "button{padding:10px 18px;border-radius:999px;border:none;font-weight:600;cursor:pointer;"
     . "background:#3b2d72;color:#fff;}"
     . ".note{font-size:13px;color:#555;}"
