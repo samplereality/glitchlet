@@ -2,7 +2,7 @@
 
 ## Overview
 - Glitchlet is a browser-based HTML/CSS/JS editor with live preview, multi-file tree, project manager, and PHP publishing.
-- Frontend lives in `index.html`, `assets/styles.css`, and `assets/app.js`.
+- Frontend lives in `index.html`, `assets/styles.css`, and `assets/js/` (ordered classic scripts sharing one global scope; `core.js` loads first, `main.js` wires events and boots last).
 - Publishing + admin dashboards live in `publish/`.
 
 ## Key UI features
@@ -54,8 +54,8 @@
 - Optional: use `/install.php` to write config, create `/projects`, run schema, and create manager (writes `install.lock`).
 
 ## Notable paths and constants
-- `assets/app.js`
-  - `PUBLISH_ENDPOINT` points to `https://glitchlet.digitaldavidson.net/publish/publish.php`.
+- `assets/js/core.js`
+  - `PUBLISH_ENDPOINT` is derived from `window.location.origin` (`/publish/publish.php` on the current host).
   - `LINE_WRAP_KEY`, `THEME_STORAGE_KEY`, `EDITOR_THEME_KEY` in localStorage.
 - `publish/publish.php`
   - `APP_URL` and `PROJECT_URL_BASE` for wayfinding.
@@ -63,10 +63,9 @@
 
 ## Known gotchas
 - Any hidden files in publish zip are rejected by server; `.keep` skipped on zip build.
-- Individual project `admin.php` must be regenerated if templates change.
+- Per-project `admin.php` is a thin stub that requires `publish/project_admin.php`, so template changes apply everywhere. Projects published before the stub existed carry a full copy — use the manager console's "Regenerate admin pages" button once to convert them.
 - `projects/admin.php` and `projects/index.html` are regenerated on publish.
 
 ## TODO ideas
 - Persist folder collapse state in localStorage.
 - Add folder icons in tree and rename folders.
-- Add “regenerate admin pages” helper script.

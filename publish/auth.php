@@ -3,6 +3,15 @@ declare(strict_types=1);
 
 require_once __DIR__ . "/db.php";
 
+function requestIsHttps(): bool {
+    if (!empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] !== "off") {
+        return true;
+    }
+    // Behind a reverse proxy or load balancer, HTTPS terminates upstream and
+    // only X-Forwarded-Proto reveals the original scheme.
+    return strtolower((string) ($_SERVER["HTTP_X_FORWARDED_PROTO"] ?? "")) === "https";
+}
+
 function startSession(): void {
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
@@ -11,7 +20,7 @@ function startSession(): void {
     session_set_cookie_params([
         "lifetime" => 0,
         "path" => "/",
-        "secure" => !empty($_SERVER["HTTPS"]),
+        "secure" => requestIsHttps(),
         "httponly" => true,
         "samesite" => "Lax",
     ]);
@@ -42,6 +51,42 @@ function logoutUser(): void {
         setcookie(session_name(), "", time() - 42000, $params["path"], $params["domain"], $params["secure"], $params["httponly"]);
     }
     session_destroy();
+}
+
+const MIN_PASSWORD_LENGTH = 8;
+
+function passwordPolicyError(string $password): string {
+    if (strlen($password) < MIN_PASSWORD_LENGTH) {
+        return "Password must be at least " . MIN_PASSWORD_LENGTH . " characters.";
+    }
+    return "";
+}
+
+function csrfToken(): string {
+    startSession();
+    if (empty($_SESSION["csrf_token"])) {
+        $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
+    }
+    return (string) $_SESSION["csrf_token"];
+}
+
+function csrfIsValid(): bool {
+    startSession();
+    $expected = (string) ($_SESSION["csrf_token"] ?? "");
+    if ($expected === "") {
+        return false;
+    }
+    $provided = (string) ($_POST["csrf_token"] ?? ($_SERVER["HTTP_X_CSRF_TOKEN"] ?? ""));
+    return $provided !== "" && hash_equals($expected, $provided);
+}
+
+function safeRedirectPath(string $redirect, string $fallback = "/"): string {
+    // Only allow same-origin absolute paths ("/foo"), not protocol-relative
+    // ("//evil.example") or absolute URLs.
+    if ($redirect === "" || $redirect[0] !== "/" || (isset($redirect[1]) && $redirect[1] === "/")) {
+        return $fallback;
+    }
+    return $redirect;
 }
 
 function requireLogin(): array {
@@ -76,6 +121,7 @@ function generatePassword(int $length = 12): string {
 function renderLoginPage(string $message = "", string $redirect = ""): string {
     $safeMessage = htmlspecialchars($message ?: "Sign in to continue.", ENT_QUOTES);
     $safeRedirect = htmlspecialchars($redirect ?: "/", ENT_QUOTES);
+    $safeCsrf = htmlspecialchars(csrfToken(), ENT_QUOTES);
     return "<!doctype html><html><head><meta charset=\"utf-8\" />"
         . "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />"
         . "<title>Glitchlet Login</title>"
@@ -89,6 +135,7 @@ function renderLoginPage(string $message = "", string $redirect = ""): string {
         . "<strong>Glitchlet Login</strong>"
         . "<p>{$safeMessage}</p>"
         . "<input type=\"hidden\" name=\"redirect\" value=\"{$safeRedirect}\" />"
+        . "<input type=\"hidden\" name=\"csrf_token\" value=\"{$safeCsrf}\" />"
         . "<input name=\"email\" type=\"email\" placeholder=\"Email\" required />"
         . "<input name=\"password\" type=\"password\" placeholder=\"Password\" required />"
         . "<button type=\"submit\">Sign in</button></form></body></html>";

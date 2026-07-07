@@ -20,19 +20,22 @@ These instructions assume a typical shared host (e.g., Reclaim Hosting) with PHP
 3) Configure a MySQL database and add a new user with ALL privileges. On cPanel, you can do both in the MySQL Database wizard. Note the new database name, database user, and database user password.
 4) Generate an app password for your Gmail account. Because Google keeps this option buried, the easiest way to find it is to log into your Google Account and search for `app password`. Take note of this app-specific password.
 5) Now visit `/install.php` to complete the installation.
+6) After the installer reports success, delete `install.php` from the server. (The installer locks itself with `install.lock`, but removing the file entirely is safer.)
 
 
 ## Project structure
 
 - `index.html` - app shell
 - `assets/styles.css` - UI styling
-- `assets/app.js` - editor logic, preview rendering, persistence, ZIP flows
+- `assets/js/` - editor logic split into modules (`core.js` state/constants, `files.js` file tree, `preview.js` sandboxed preview, `archive.js` import/export/publish, `main.js` event wiring/startup, etc.); loaded as ordered classic scripts, no build step
 - `publish/manager.php` - manager console (accounts/projects)
+- `publish/project_admin.php` - shared per-project admin handler (each project's `admin.php` is a stub that requires it)
 - `publish/projects.php` - per-user published projects dashboard
 
 ## Notes
 
-- ZIP import/export uses JSZip from a CDN by default. If you need fully offline hosting, download JSZip locally and update `ensureJSZip()` in `assets/app.js`.
+- The live preview runs in a fully sandboxed iframe (opaque origin) so previewed/remixed code cannot touch your Glitchlet session, cookies, or saved projects. A side effect: `localStorage`, `document.cookie`, and IndexedDB are unavailable *inside previewed projects* (they throw a SecurityError). Published projects are unaffected.
+- ZIP import/export uses JSZip from a CDN by default. If you need fully offline hosting, download JSZip locally and update `ensureJSZip()` in `assets/js/archive.js`.
 - Account emails use SMTP settings in `publish/config.php` (Gmail app passwords supported).
 - Keep `publish/config.php` private. It is ignored by git; do not commit SMTP or DB credentials.
 - `/publish/bootstrap.php` is disabled when `install.lock` exists.
@@ -53,10 +56,13 @@ Create a JSON file (hosted anywhere public) that looks like this:
 {
   "version": "0.2.0",
   "zip_url": "https://example.com/glitchlet/releases/glitchlet-0.2.0.zip",
-  "sha256": "optional-hex-sha256-checksum",
+  "sha256": "hex-sha256-checksum-of-the-zip (required)",
   "notes": "Optional short release notes."
 }
 ```
+
+The `zip_url` must use HTTPS and the `sha256` checksum is required — updates
+are refused otherwise. Generate the checksum with `shasum -a 256 release.zip`.
 
 ### Release checklist (GitHub)
 
