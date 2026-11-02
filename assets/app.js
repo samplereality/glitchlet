@@ -1578,7 +1578,7 @@ async function publishProject() {
         await fetchSession();
         openAccountModal();
       }
-      throw new Error(raw || `Publish failed (${response.status})`);
+      throw new Error(describePublishFailure(response.status, raw));
     }
     let data = null;
     try {
@@ -1596,8 +1596,37 @@ async function publishProject() {
   } catch (error) {
     console.error(error);
     setStatus("Publish failed", 2000);
-    await showAlert("Publish failed. Check the console for details.", "Publish");
+    const message = error?.message || "Publish failed. Check the console for details.";
+    await showAlert(message, "Publish");
   }
+}
+
+function describePublishFailure(status, raw) {
+  let serverMessage = "";
+  try {
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed.error === "string") {
+      serverMessage = parsed.error;
+    }
+  } catch (error) {
+    // Not JSON: fall through to the raw text / status handling below.
+  }
+  if (!serverMessage && raw && !/^\s*</.test(raw)) {
+    serverMessage = raw.slice(0, 300);
+  }
+  if (serverMessage) {
+    return `Publish failed (${status}): ${serverMessage}`;
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return `Publish failed (${status}): the server did not finish handling the upload. `
+      + "This is usually a hosting timeout or upload size limit. "
+      + "Try again, try a smaller project (large images, audio, or video are the usual cause), "
+      + "and let the site manager know if it keeps happening.";
+  }
+  if (status === 413) {
+    return "Publish failed (413): the project is too large for the server's upload limit.";
+  }
+  return `Publish failed (${status}).`;
 }
 
 async function resetProject(options = {}) {

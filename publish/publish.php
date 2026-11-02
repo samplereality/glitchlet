@@ -12,6 +12,69 @@ header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 
+// Publishing can take a while for media-heavy projects and must never emit
+// HTML error pages: give the script room to finish and turn any uncaught
+// failure (exception, fatal error, memory exhaustion) into a JSON error.
+@ini_set("display_errors", "0");
+@ini_set("log_errors", "1");
+@set_time_limit(300);
+@ini_set("memory_limit", "256M");
+
+$glitchletTempDir = null;
+
+function removeDirectoryTree(string $path): void {
+    if ($path === "" || !is_dir($path)) {
+        return;
+    }
+    $items = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($items as $item) {
+        $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+    }
+    @rmdir($path);
+}
+
+// Scratch directory (and, once moved, the half-published project directory)
+// to remove if publishing aborts partway through.
+function cleanupTempDir(): void {
+    global $glitchletTempDir;
+    if ($glitchletTempDir) {
+        removeDirectoryTree($glitchletTempDir);
+        $glitchletTempDir = null;
+    }
+}
+
+set_exception_handler(function (Throwable $e): void {
+    error_log("glitchlet publish: " . get_class($e) . ": " . $e->getMessage()
+        . " in " . $e->getFile() . ":" . $e->getLine());
+    cleanupTempDir();
+    if (!headers_sent()) {
+        http_response_code(500);
+    }
+    echo json_encode([
+        "ok" => false,
+        "error" => "Publish failed on the server: " . $e->getMessage(),
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+});
+
+register_shutdown_function(function (): void {
+    $error = error_get_last();
+    if (!$error || !in_array($error["type"], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+        return;
+    }
+    cleanupTempDir();
+    if (!headers_sent()) {
+        http_response_code(500);
+    }
+    echo json_encode([
+        "ok" => false,
+        "error" => "Publish failed on the server: " . $error["message"],
+    ], JSON_UNESCAPED_SLASHES);
+});
+
 if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
     http_response_code(204);
     exit;
@@ -60,6 +123,7 @@ $allowedExtensions = [
 ];
 
 function fail(string $message, int $status = 400): void {
+    cleanupTempDir();
     http_response_code($status);
     echo json_encode(["ok" => false, "error" => $message], JSON_UNESCAPED_SLASHES);
     exit;
@@ -359,6 +423,7 @@ for ($i = 0; $i < $zip->numFiles; $i++) {
 }
 
 $tempDir = $tempRoot . "/glitchlet_" . bin2hex(random_bytes(8));
+$glitchletTempDir = $tempDir;
 ensureDir($tempDir);
 
 foreach ($entries as $entry) {
@@ -390,6 +455,8 @@ $slug = generateSlug($adjectives, $nouns, $projectsRoot);
 $destination = $projectsRoot . "/" . $slug;
 
 moveDirectory($tempDir, $destination);
+// From here on, a failure should remove the half-published project directory.
+$glitchletTempDir = $destination;
 
 injectRemixFab($destination);
 writeAdminDashboard($destination, $adminTemplatePath);
@@ -415,27 +482,38 @@ $metadata = [
     "url" => PROJECT_URL_BASE . $slug . "/",
 ];
 
-$pdo = db();
-$stmt = $pdo->prepare(
-    "INSERT INTO projects (slug, name, description, author, creator, owner_user_id, archived, published_at, updated_at, url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-);
-$stmt->execute([
-    $metadata["slug"],
-    $metadata["name"],
-    $metadata["description"],
-    $metadata["author"],
-    $metadata["creator"],
-    (int) $user["id"],
-    0,
-    $metadata["published_at"],
-    $metadata["updated_at"],
-    $metadata["url"],
-]);
+try {
+    $pdo = db();
+} catch (PDOException $e) {
+    error_log("glitchlet publish: database connection failed: " . $e->getMessage());
+    fail("Database connection failed. Check publish/config.php credentials.", 500);
+}
+try {
+    $stmt = $pdo->prepare(
+        "INSERT INTO projects (slug, name, description, author, creator, owner_user_id, archived, published_at, updated_at, url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    $stmt->execute([
+        $metadata["slug"],
+        $metadata["name"],
+        $metadata["description"],
+        $metadata["author"],
+        $metadata["creator"],
+        (int) $user["id"],
+        0,
+        $metadata["published_at"],
+        $metadata["updated_at"],
+        $metadata["url"],
+    ]);
+} catch (PDOException $e) {
+    error_log("glitchlet publish: failed to record project: " . $e->getMessage());
+    fail("Failed to record the project in the database.", 500);
+}
 
 writeProjectJson($destination, $metadata);
 writeProjectsIndex($pdo);
 writeProjectsAdminDashboard($projectsRoot, $projectsAdminTemplatePath);
+$glitchletTempDir = null;
 
 echo json_encode([
     "ok" => true,
